@@ -16,7 +16,7 @@ def compute_weight_eve(seq, list_seq, theta):
         # Dot product of one-hot vectors x and y = (x == y).sum()
         matches = np.dot(list_seq, seq)
         denom = matches / number_non_empty_positions  # number_non_empty_positions = np.dot(seq,seq)
-        denom = np.sum(denom >= 1 - theta)  # Lood: Changed > to >=
+        denom = np.sum(denom > 1 - theta)  # Lood: Keeping >, and changing EVCouplings code to >
         return 1 / denom
     else:
         return 0.0  # return 0 weight if sequence is fully empty
@@ -29,7 +29,7 @@ def _compute_weight_global(i):
     if number_non_empty_positions > 0:
         matches = np.dot(list_seq_global, seq)
         denom = matches / number_non_empty_positions  # number_non_empty_positions = np.dot(seq,seq)
-        denom = np.sum(denom >= 1 - theta_global)  # Edit(Lood): Changed > to >=
+        denom = np.sum(denom > 1 - theta_global)  # Lood: Keeping >, and changing EVCouplings code to >
         return 1 / denom
     else:
         return 0.0  # return 0 weight if sequence is fully empty
@@ -45,9 +45,6 @@ def _init_worker_calc_eve(list_seq, theta):
     theta_global = theta
 
 
-# Could compare to evcouplings's num_cluster implementation
-# https://github.com/debbiemarkslab/EVcouplings/blob/develop/evcouplings/align/alignment.py#L1172
-#  And take best of both worlds
 def compute_sequence_weights(list_seq, theta, num_cpus=1):
     _N, _seq_len, _alphabet_size = list_seq.shape  # = len(self.seq_name_to_sequence.keys()), len(self.focus_cols), len(self.alphabet)
     list_seq = list_seq.reshape((_N, _seq_len * _alphabet_size))
@@ -79,6 +76,7 @@ def is_empty_sequence_matrix(matrix, empty_value):
     return empty_idx
 
 
+# See calc_num_cluster_members_nogaps
 @numba.jit(nopython=True)  # , fastmath=True, parallel=True)
 def calc_num_clusters_i(matrix, identity_threshold, invalid_value, i: int, L_non_gaps: float):
     N, L = matrix.shape
@@ -97,7 +95,8 @@ def calc_num_clusters_i(matrix, identity_threshold, invalid_value, i: int, L_non
             if matrix[i, k] == matrix[j, k] and matrix[i, k] != invalid_value:
                 pair_matches += 1
         # Edit(Lood): Calculate identity as fraction of non-gapped positions (so asymmetric)
-        if pair_matches / L_non_gaps >= identity_threshold:
+        # Note: Changed >= to > to match EVE / DeepSequence code
+        if pair_matches / L_non_gaps > identity_threshold:
             num_clusters_i += 1
 
     return num_clusters_i
@@ -109,7 +108,7 @@ def calc_num_clusters_i(matrix, identity_threshold, invalid_value, i: int, L_non
 @numba.jit(nopython=True)  # , fastmath=True, parallel=True
 def calc_num_cluster_members_nogaps(matrix, identity_threshold, invalid_value):
     """
-    From EVCouplings: https://github.com/debbiemarkslab/EVcouplings
+    From EVCouplings: https://github.com/debbiemarkslab/EVcouplings/blob/develop/evcouplings/align/alignment.py#L1172
     Calculate number of sequences in alignment
     within given identity_threshold of each other
     Parameters
@@ -145,9 +144,10 @@ def calc_num_cluster_members_nogaps(matrix, identity_threshold, invalid_value):
                     pair_matches += 1
 
             # Edit(Lood): Calculate identity as fraction of non-gapped positions (so asymmetric)
-            if pair_matches / L_non_gaps[i] >= identity_threshold:
+            # Note: Changed >= to > to match EVE / DeepSequence code
+            if pair_matches / L_non_gaps[i] > identity_threshold:
                 num_neighbors[i] += 1
-            if pair_matches / L_non_gaps[j] >= identity_threshold:
+            if pair_matches / L_non_gaps[j] > identity_threshold:
                 num_neighbors[j] += 1
 
     return num_neighbors
@@ -338,7 +338,8 @@ def calc_num_cluster_members_nogaps_parallel(matrix, identity_threshold, invalid
                     i, k] != invalid_value:  # Edit(Lood): Don't count gaps as matches
                     pair_matches += 1
             # Edit(Lood): Calculate identity as fraction of non-gapped positions (so this similarity is asymmetric)
-            if pair_matches / L_non_gaps[i] >= identity_threshold:
+            # Note: Changed >= to > to match EVE / DeepSequence code
+            if pair_matches / L_non_gaps[i] > identity_threshold:
                 num_neighbors_i += 1
 
         num_neighbors[i] = num_neighbors_i

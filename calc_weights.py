@@ -49,6 +49,7 @@ def main(args):
                            "NOT using default value of theta=0.2; please specify theta manually. Specific line:",
                            mapping_file[args.protein_index],
                            "Previous error:", e)
+        assert not np.isnan(theta), "Theta is NaN, please provide a custom theta value"
 
     print("Theta MSA re-weighting: " + str(theta))
 

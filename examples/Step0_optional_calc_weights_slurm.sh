@@ -36,6 +36,7 @@ export MSA_list='./data/mappings/mapping_msa_tkmer_20220227.csv'
 export num_cpus="${SLURM_CPUS_PER_TASK}"
 export MSA_weights_location='./data/weights_'$num_cpus'cpu/'
 export protein_index=$SLURM_ARRAY_TASK_ID
+export calc_method='both'
 
 srun /home/lov701/miniconda3/envs/protein_env/bin/python3 calc_weights.py \
     --MSA_data_folder ${MSA_data_folder} \
@@ -43,5 +44,5 @@ srun /home/lov701/miniconda3/envs/protein_env/bin/python3 calc_weights.py \
     --protein_index "${protein_index}" \
     --MSA_weights_location "${MSA_weights_location}" \
     --num_cpus "$num_cpus" \
-    --calc_method evcouplings
+    --calc_method ${calc_method}
 #    --skip_existing
