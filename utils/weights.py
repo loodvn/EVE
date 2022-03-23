@@ -187,7 +187,7 @@ def calc_weights_evcouplings(matrix_mapped, identity_threshold, empty_value, num
         with multiprocessing.Pool(processes=num_cpus, initializer=_init_worker_ev,
                                   initargs=(matrix_mapped[~empty_idx], empty_value, identity_threshold)) as pool:
             # Simply: Chunksize is between 1 and 64, preferably N / num_cpus / 16,
-            # so every CPU gets an 8th of their expected total every time they ask for more work.
+            # so every CPU gets a 16th of their expected total every time they ask for more work.
             #  Too small values: Too much overhead sending simple indexes to workers, and them sending back results.
             #  Too large: May wait a while for the last worker's task to finish.
             chunksize = max(1, min(64, int(N / num_cpus / 16)))

@@ -1,2 +1,5 @@
 protein_name,msa_location,theta
+P53_HUMAN,P53_HUMAN_b0.1.a2m, 0.2
 PTEN_HUMAN,PTEN_HUMAN_b1.0.a2m,0.2
+RASH_HUMAN,RASH_HUMAN_b03.a2m,0.2
+SCN5A_HUMAN,SCN5A_HUMAN_b1.0.a2m,0.2

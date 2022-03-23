@@ -9,7 +9,7 @@ export MSA_list='./data/mappings/example_mapping.csv'
 export MSA_weights_location='./data/weights'
 export protein_index=0
 export num_cpus=1
-export calc_method='both'
+export calc_method='evcouplings'
 
 python3 calc_weights.py \
     --MSA_data_folder ${MSA_data_folder} \
