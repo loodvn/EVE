@@ -54,7 +54,7 @@ export ALIGNMENTS_DIR=msa_tkmer_20220227
 /home/lov701/job_gpu_monitor.sh --interval 1m gpu_logs &
 
 export MSA_data_folder='./data/MSA'
-export MSA_list='./data/mappings/example_mapping.csv'
+export MSA_list='./data/mappings/deepseq_mapping.csv'
 export MSA_weights_location='./data/weights'
 export VAE_checkpoint_location='./results/VAE_parameters'
 export model_name_suffix='2022_04_26_DeepSeq_reproduce'
