@@ -40,6 +40,8 @@ echo "Running from: $(pwd)"
 echo "GPU available: $(nvidia-smi)"
 module load gcc/6.2.0 cuda/10.2
 
+conda activate protein_env  # This should use ~/miniconda3/bin/conda, can set manually
+
 #export WEIGHTS_DIR=weights_msa_tkmer_20220227
 export ALIGNMENTS_DIR=msa_tkmer_20220227
 
