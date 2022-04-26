@@ -17,7 +17,7 @@
 # Job array-specific
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-#SBATCH --array=0-3  # Array end is inclusive
+#SBATCH --array=0-73  # Array end is inclusive
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
