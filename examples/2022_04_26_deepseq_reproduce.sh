@@ -50,8 +50,8 @@ source "$CONDA_BIN"/activate protein_env
 #export WEIGHTS_DIR=weights_msa_tkmer_20220227
 export ALIGNMENTS_DIR=msa_tkmer_20220227
 
-# Monitor GPU usage (store outputs in ./gpu_logs/)
-/home/lov701/job_gpu_monitor.sh --interval 1m gpu_logs &
+# Monitor GPU usage (store outputs in ./logs/gpu_logs/)
+/home/lov701/job_gpu_monitor.sh --interval 1m logs/gpu_logs &
 
 export MSA_data_folder='./data/MSA'
 export MSA_list='./data/mappings/deepseq_mapping.csv'
