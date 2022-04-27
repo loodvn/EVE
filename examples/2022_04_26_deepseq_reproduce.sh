@@ -21,7 +21,7 @@
 # Job array-specific
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-#SBATCH --array=0-3  # Array end is inclusive
+#SBATCH --array=0-71  # Array end is inclusive
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -48,13 +48,13 @@ export CONDA_BIN=~/miniconda3/bin/
 source "$CONDA_BIN"/activate protein_env
 
 #export WEIGHTS_DIR=weights_msa_tkmer_20220227
-export ALIGNMENTS_DIR=msa_tkmer_20220227
+#export ALIGNMENTS_DIR=msa_tkmer_20220227
 
 # Monitor GPU usage (store outputs in ./logs/gpu_logs/)
 /home/lov701/job_gpu_monitor.sh --interval 1m logs/gpu_logs &
 
 export MSA_data_folder='./data/MSA'
-export MSA_list='./data/mappings/deepseq_mapping.csv'
+export MSA_list='./data/mappings/eve_msa_mapping_20220427.csv'
 export MSA_weights_location='./data/weights'
 export VAE_checkpoint_location='./results/VAE_parameters'
 export model_name_suffix='2022_04_26_DeepSeq_reproduce'
