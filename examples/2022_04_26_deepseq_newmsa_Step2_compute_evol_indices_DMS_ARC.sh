@@ -4,10 +4,12 @@
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 0-23:59                         # Runtime in D-HH:MM format
 #SBATCH --partition=short
-#SBATCH -p gpu_quad    #,gpu_marks,gpu,gpu_requeue        # Partition to run in
 #SBATCH --gres=gpu:1
-#SBATCH --qos=ecr                           # ARC
 #SBATCH --mem=20G                          # Memory total in MB (for all cores)
+
+#SBATCH --qos=ecr                           # ARC
+#SBATCH --reservation=ecr202204
+
 
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
@@ -26,11 +28,6 @@
 # Add a dependency so that the next jobs are submitted as soon as the first job completes successfully:
 # scontrol update Dependency=afterok:<jobid>_0 JobId=<jobid>
 # Release all the other jobs; they'll be stuck until the first job is done
-
-
-#SBATCH --array=57
-#SBATCH --reservation=ecr202204
-####SBATCH --dependency=afterok:745359
 ################################################################################
 
 set -e # fail fully on first line failure (from Joost slurm_for_ml)
