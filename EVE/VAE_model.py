@@ -38,6 +38,9 @@ class VAE_model(nn.Module):
         self.alphabet_size = data.alphabet_size
         self.Neff = data.Neff
 
+        self.encoder_parameters=encoder_parameters
+        self.decoder_parameters=decoder_parameters
+
         encoder_parameters['seq_len'] = self.seq_len
         encoder_parameters['alphabet_size'] = self.alphabet_size
         decoder_parameters['seq_len'] = self.seq_len
@@ -233,8 +236,8 @@ class VAE_model(nn.Module):
 
             if training_step % training_parameters['save_model_params_freq']==0:
                 self.save(model_checkpoint=training_parameters['model_checkpoint_location']+os.sep+self.model_name+"_step_"+str(training_step),
-                            encoder_parameters=encoder_parameters,
-                            decoder_parameters=decoder_parameters,
+                            encoder_parameters=self.encoder_parameters,
+                            decoder_parameters=self.decoder_parameters,
                             training_parameters=training_parameters)
             
             if training_parameters['use_validation_set'] and training_step % training_parameters['validation_freq'] == 0:
@@ -251,8 +254,8 @@ class VAE_model(nn.Module):
                     best_val_loss = val_neg_ELBO
                     best_model_step_index = training_step
                     self.save(model_checkpoint=training_parameters['model_checkpoint_location']+os.sep+self.model_name+"_best",
-                                encoder_parameters=encoder_parameters,
-                                decoder_parameters=decoder_parameters,
+                                encoder_parameters=self.encoder_parameters,
+                                decoder_parameters=self.decoder_parameters,
                                 training_parameters=training_parameters)
                 self.train()
     
@@ -282,30 +285,56 @@ class VAE_model(nn.Module):
             'training_parameters':training_parameters,
             }, model_checkpoint)
     
-    def compute_evol_indices(self, msa_data, list_mutations_location, num_samples, batch_size=256):
+    def compute_evol_indices(self, msa_data, list_mutations_location, num_samples, batch_size=256, mutant_column="mutations", num_chunks=1):
+        list_valid_mutations=[]
+        evol_indices=[]
+        full_data = pd.read_csv(list_mutations_location, header=0)
+        size_per_chunk = int(len(full_data) / num_chunks)
+        print("size_per_chunk: "+str(size_per_chunk))
+        for chunk in range(num_chunks):
+            print("chunk #: "+str(chunk))
+            data_chunk = full_data[chunk*size_per_chunk:(chunk+1)*size_per_chunk]
+            list_valid_mutations_chunk, evol_indices_chunk, _, _ = self.compute_evol_indices_chunk(msa_data=msa_data, list_mutations_location=data_chunk, 
+                                                                                        num_samples=num_samples, batch_size=batch_size, mutant_column=mutant_column)
+            list_valid_mutations.extend(list(list_valid_mutations_chunk))
+            evol_indices.extend(list(evol_indices_chunk))
+        return list_valid_mutations, evol_indices , '', ''
+
+    def compute_evol_indices_chunk(self, msa_data, list_mutations_location, num_samples, batch_size=256, mutant_column="mutations"):
         """
         The column in the list_mutations dataframe that contains the mutant(s) for a given variant should be called "mutations"
         """
         #Multiple mutations are to be passed colon-separated
-        list_mutations=pd.read_csv(list_mutations_location, header=0)
+        list_mutations=list_mutations_location #pd.read_csv(list_mutations_location, header=0)
         
         #Remove (multiple) mutations that are invalid
         list_valid_mutations = ['wt']
         list_valid_mutated_sequences = {}
         list_valid_mutated_sequences['wt'] = msa_data.focus_seq_trimmed # first sequence in the list is the wild_type
-        for mutation in list_mutations['mutations']:
-            individual_substitutions = mutation.split(':')
+        for mutation in list_mutations[mutant_column]:
+            try:
+                individual_substitutions = str(mutation).split(':')
+            except Exception as e:
+                print("Error with mutant {}".format(str(mutation)))
+                print("Specific error: " + str(e))
+                continue
             mutated_sequence = list(msa_data.focus_seq_trimmed)[:]
             fully_valid_mutation = True
             for mut in individual_substitutions:
-                wt_aa, pos, mut_aa = mut[0], int(mut[1:-1]), mut[-1]
-                if pos not in msa_data.uniprot_focus_col_to_wt_aa_dict or msa_data.uniprot_focus_col_to_wt_aa_dict[pos] != wt_aa or mut not in msa_data.mutant_to_letter_pos_idx_focus_list:
-                    print ("Not a valid mutant: "+mutation)
+                try:
+                    wt_aa, pos, mut_aa = mut[0], int(mut[1:-1]), mut[-1]
+                    if pos not in msa_data.uniprot_focus_col_to_wt_aa_dict or msa_data.uniprot_focus_col_to_wt_aa_dict[pos] != wt_aa or mut not in msa_data.mutant_to_letter_pos_idx_focus_list:
+                        print("Not a valid mutant: "+mutation)
+                        fully_valid_mutation = False
+                        break
+                    else:
+                        wt_aa,pos,idx_focus = msa_data.mutant_to_letter_pos_idx_focus_list[mut]
+                        mutated_sequence[idx_focus] = mut_aa #perform the corresponding AA substitution
+                except Exception as e:
+                    print("Invalid mutation {} in mutant {}".format(str(mut),str(mutation)))
+                    print("Specific error: " + str(e))
                     fully_valid_mutation = False
                     break
-                else:
-                    wt_aa,pos,idx_focus = msa_data.mutant_to_letter_pos_idx_focus_list[mut]
-                    mutated_sequence[idx_focus] = mut_aa #perform the corresponding AA substitution
             
             if fully_valid_mutation:
                 list_valid_mutations.append(mutation)
