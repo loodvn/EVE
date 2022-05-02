@@ -1,23 +1,24 @@
 #!/bin/bash
-#SBATCH -c 2                               # Request two cores
+#SBATCH --cpus-per-task=5
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 0-23:59                         # Runtime in D-HH:MM format
+#SBATCH --partition=short
 #SBATCH -p gpu_quad    #,gpu_marks,gpu,gpu_requeue        # Partition to run in
 #SBATCH --gres=gpu:1
-#SBATCH --constraint=gpu_doublep
-#SBATCH --qos=gpuquad_qos
+#SBATCH --qos=ecr                           # ARC
 #SBATCH --mem=20G                          # Memory total in MB (for all cores)
 
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_v6"
+#SBATCH --job-name="tmp_eve_deepseq_dms_v6"  # "eve_deepseq_dms_v6"
 
 # Job array-specific
-#SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
-##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
+#SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
+##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-71  # Array end is inclusive
+#SBATCH --array=0  # tmp testing only first job
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -25,6 +26,11 @@
 # Add a dependency so that the next jobs are submitted as soon as the first job completes successfully:
 # scontrol update Dependency=afterok:<jobid>_0 JobId=<jobid>
 # Release all the other jobs; they'll be stuck until the first job is done
+
+
+#SBATCH --array=57
+#SBATCH --reservation=ecr202204
+####SBATCH --dependency=afterok:745359
 ################################################################################
 
 set -e # fail fully on first line failure (from Joost slurm_for_ml)
@@ -34,37 +40,40 @@ set -e # fail fully on first line failure (from Joost slurm_for_ml)
 echo "hostname: $(hostname)"
 echo "Running from: $(pwd)"
 echo "GPU available: $(nvidia-smi)"
-module load gcc/6.2.0 cuda/10.2
 
-export CONDA_ENVS_PATH=/home/lov701/miniconda3/envs/
-export CONDA_PKGS_DIRS=/home/lov701/miniconda3/pkgs/
-export CONDA_BIN=~/miniconda3/bin/
+mkdir -p ./logs/slurm_files   # Script fails silently if the slurm output directory doesn't exist
+
+# ARC (copied from protein_retrieval repo)
+export CONDA_ENVS_PATH=$TMPDIR/conda_envs
+export CONDA_PKGS_DIRS=$DATA/conda_pkgs
+export CONDA_BIN="$HOME"/miniconda3/bin
 
 # Not running update, assuming it's done already
+#"$CONDA_BIN"/conda-env update -f environment.yml
+echo "Activating conda env, not updating and assuming it exists"
 source "$CONDA_BIN"/activate protein_env
 
-#export WEIGHTS_DIR=weights_msa_tkmer_20220227
-#export ALIGNMENTS_DIR=msa_tkmer_20220227
-
 # Monitor GPU usage (store outputs in ./logs/gpu_logs/)
-/home/lov701/job_gpu_monitor.sh --interval 1m logs/gpu_logs &
+~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
-export MSA_data_folder='/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
+export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
 export MSA_list='./data/mappings/eve_msa_mapping_20220427.csv'
 export MSA_weights_location='./data/weights'
 export VAE_checkpoint_location='./results/VAE_parameters'
-export model_name_suffix='2022_04_26_DeepSeq_reproduce'
+export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Copied from O2
 export model_parameters_location='./EVE/deepseq_model_params.json'
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}
 
-export computation_mode='all_singles'
-export all_singles_mutations_folder='./data/mutations'
+export computation_mode='DMS'
+#export all_singles_mutations_folder='./data/mutations'
+export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Dataset_v5_20220227'
 export output_evol_indices_location='./results/evol_indices'
+export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
 export num_samples_compute_evol_indices=20000
 export batch_size=2048
 
-python compute_evol_indices.py \
+python compute_evol_indices_DMS.py \
     --MSA_data_folder ${MSA_data_folder} \
     --MSA_list ${MSA_list} \
     --protein_index ${protein_index} \
@@ -73,7 +82,6 @@ python compute_evol_indices.py \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
     --computation_mode ${computation_mode} \
-    --all_singles_mutations_folder ${all_singles_mutations_folder} \
     --output_evol_indices_location ${output_evol_indices_location} \
     --num_samples_compute_evol_indices ${num_samples_compute_evol_indices} \
     --batch_size ${batch_size}
