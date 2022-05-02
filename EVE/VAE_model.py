@@ -311,6 +311,11 @@ class VAE_model(nn.Module):
         list_valid_mutations = ['wt']
         list_valid_mutated_sequences = {}
         list_valid_mutated_sequences['wt'] = msa_data.focus_seq_trimmed # first sequence in the list is the wild_type
+
+        print("Debugging:")
+        print("uniprot_focus_col_to_wt_aa_dict: {}".format(msa_data.uniprot_focus_col_to_wt_aa_dict))
+        print("mutant_to_letter_pos_idx_focus_list: {}".format(msa_data.mutant_to_letter_pos_idx_focus_list))
+
         for mutation in list_mutations[mutant_column]:
             try:
                 individual_substitutions = str(mutation).split(':')
@@ -323,15 +328,27 @@ class VAE_model(nn.Module):
             for mut in individual_substitutions:
                 try:
                     wt_aa, pos, mut_aa = mut[0], int(mut[1:-1]), mut[-1]
-                    if pos not in msa_data.uniprot_focus_col_to_wt_aa_dict or msa_data.uniprot_focus_col_to_wt_aa_dict[pos] != wt_aa or mut not in msa_data.mutant_to_letter_pos_idx_focus_list:
-                        print("Not a valid mutant: "+mutation)
+                    # Log specific invalid mutants
+                    if pos not in msa_data.uniprot_focus_col_to_wt_aa_dict:
+                        print("pos {} not in uniprot_focus_col_to_wt_aa_dict".format(pos))
                         fully_valid_mutation = False
-                        break
-                    else:
+                    # Given it's in the dict, check if it's a valid mutation
+                    elif msa_data.uniprot_focus_col_to_wt_aa_dict[pos] != wt_aa:
+                        print("wt_aa {} != uniprot_focus_col_to_wt_aa_dict[{}] {}".format(wt_aa, pos, msa_data.uniprot_focus_col_to_wt_aa_dict[pos]))
+                        fully_valid_mutation = False
+                    if mut not in msa_data.mutant_to_letter_pos_idx_focus_list:
+                        print("mut {} not in mutant_to_letter_pos_idx_focus_list".format(mut))
+                        fully_valid_mutation = False
+
+                    if fully_valid_mutation:
                         wt_aa,pos,idx_focus = msa_data.mutant_to_letter_pos_idx_focus_list[mut]
                         mutated_sequence[idx_focus] = mut_aa #perform the corresponding AA substitution
+                    else:
+                        print("Not a valid mutant: " + mutation)
+                        break
+
                 except Exception as e:
-                    print("Invalid mutation {} in mutant {}".format(str(mut),str(mutation)))
+                    print("Error processing mutation {} in mutant {}".format(str(mut),str(mutation)))
                     print("Specific error: " + str(e))
                     fully_valid_mutation = False
                     break
@@ -339,7 +356,7 @@ class VAE_model(nn.Module):
             if fully_valid_mutation:
                 list_valid_mutations.append(mutation)
                 list_valid_mutated_sequences[mutation] = ''.join(mutated_sequence)
-        
+
         #One-hot encoding of mutated sequences
         mutated_sequences_one_hot = np.zeros((len(list_valid_mutations),len(msa_data.focus_cols),len(msa_data.alphabet)))
         for i,mutation in enumerate(list_valid_mutations):
