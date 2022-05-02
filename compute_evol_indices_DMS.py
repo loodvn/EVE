@@ -27,6 +27,7 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', default=256, type=int, help='Batch size when computing evol indices')
     args = parser.parse_args()
 
+    assert os.path.isfile(args.MSA_list), 'MSA list file does not exist: {}'.format(args.MSA_list)
     mapping_file = pd.read_csv(args.MSA_list)
     DMS_id = mapping_file['DMS_id'][args.protein_index]
     protein_name = mapping_file['protein_name'][args.protein_index]
