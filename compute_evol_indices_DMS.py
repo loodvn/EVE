@@ -27,6 +27,8 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', default=256, type=int, help='Batch size when computing evol indices')
     args = parser.parse_args()
 
+    print("Arguments:", args)
+
     assert os.path.isfile(args.MSA_list), 'MSA list file does not exist: {}'.format(args.MSA_list)
     mapping_file = pd.read_csv(args.MSA_list)
     DMS_id = mapping_file['DMS_id'][args.protein_index]
@@ -75,13 +77,16 @@ if __name__=='__main__':
     )
     model = model.to(model.device)
 
+    checkpoint_name = str(args.VAE_checkpoint_location) + os.sep + model_name + "_final"
+    assert os.path.isfile(checkpoint_name), 'Checkpoint file does not exist: {}'.format(checkpoint_name)
+
     try:
-        checkpoint_name = str(args.VAE_checkpoint_location) + os.sep + model_name + "_final"
         checkpoint = torch.load(checkpoint_name)
         model.load_state_dict(checkpoint['model_state_dict'])
         print("Initialized VAE with checkpoint '{}' ".format(checkpoint_name))
-    except:
-        print("Unable to locate VAE model checkpoint {}".format(checkpoint_name))
+    except Exception as e:
+        print("Unable to load VAE model checkpoint {}".format(checkpoint_name))
+        print(e)
         sys.exit(0)
     
     list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(msa_data=data,
