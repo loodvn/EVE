@@ -20,7 +20,7 @@
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-71  # Array end is inclusive
-#SBATCH --array=0  # tmp testing only first job
+#SBATCH --array=0-30  # Only first 30 MSAs have been trained, so let's only take first 30 DMSs, (# DMSs > # MSAs)
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
