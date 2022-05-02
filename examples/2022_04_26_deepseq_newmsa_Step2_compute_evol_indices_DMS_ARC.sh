@@ -37,6 +37,7 @@ set -e # fail fully on first line failure (from Joost slurm_for_ml)
 echo "hostname: $(hostname)"
 echo "Running from: $(pwd)"
 echo "GPU available: $(nvidia-smi)"
+echo "Submitted from SLURM_SUBMIT_DIR: ${SLURM_SUBMIT_DIR}"
 
 mkdir -p ./logs/slurm_files   # Script fails silently if the slurm output directory doesn't exist
 
@@ -79,6 +80,7 @@ python compute_evol_indices_DMS.py \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
     --computation_mode ${computation_mode} \
+    --mutations_location ${mutations_location} \
     --output_evol_indices_location ${output_evol_indices_location} \
     --num_samples_compute_evol_indices ${num_samples_compute_evol_indices} \
     --batch_size ${batch_size}
