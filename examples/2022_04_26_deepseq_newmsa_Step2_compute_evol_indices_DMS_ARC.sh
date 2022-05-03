@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --cpus-per-task=5
+#SBATCH --cpus-per-task=4
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 0-23:59                         # Runtime in D-HH:MM format
@@ -15,13 +15,12 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="tmp_eve_deepseq_dms_v6"  # "eve_deepseq_dms_v6"
+#SBATCH --job-name="eve_deepseq_dms_v6"
 
 # Job array-specific
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-#SBATCH --array=0-71  # Array end is inclusive
-#SBATCH --array=0-30  # Only first 30 MSAs have been trained, so let's only take first 30 DMSs, (# DMSs > # MSAs)
+#SBATCH --array=0-87  # 88 DMSs, 72 MSAs # Array end is inclusive
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
