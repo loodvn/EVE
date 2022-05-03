@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --cpus-per-task=5
+#SBATCH --cpus-per-task 4
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 0-23:59                         # Runtime in D-HH:MM format
@@ -11,17 +11,15 @@
 #SBATCH --qos=ecr
 #SBATCH --reservation=ecr202204
 
-
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="tmp_eve_deepseq_dms_v6"  # "eve_deepseq_dms_v6"
+#SBATCH --job-name="eve_deepseq_v6"
 
 # Job array-specific
-#SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
-##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
+#SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
+##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-71  # Array end is inclusive
-#SBATCH --array=0-30  # Only first 30 MSAs have been trained, so let's only take first 30 DMSs, (# DMSs > # MSAs)
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -55,33 +53,26 @@ source "$CONDA_BIN"/activate protein_env
 # Monitor GPU usage (store outputs in ./logs/gpu_logs/)
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
+# Monitor GPU usage (store outputs in ./logs/gpu_logs/)
+/home/lov701/job_gpu_monitor.sh --interval 1m logs/gpu_logs &
+
+# ARC
 export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
-export MSA_list='./data/mappings/transfokmer_mapping_20220227_DMS.csv'
+export MSA_list='./data/mappings/eve_msa_mapping_20220427.csv'
 export MSA_weights_location='./data/weights'
 export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters'
-export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Copied from O2
+export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Essential for skip_existing to work # Copied from O2  # TODO Should make '2022_04_26_DeepSeq_msa_v6'
 export model_parameters_location='./EVE/deepseq_model_params.json'
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}
 
-export computation_mode='DMS'
-#export all_singles_mutations_folder='./data/mutations'
-export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Dataset_v5_20220227'
-export output_evol_indices_location='./results/evol_indices'
-export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
-export num_samples_compute_evol_indices=20000
-export batch_size=2048
-
-python compute_evol_indices_DMS.py \
+python train_VAE.py \
     --MSA_data_folder ${MSA_data_folder} \
     --MSA_list ${MSA_list} \
-    --protein_index ${protein_index} \
+    --protein_index "${protein_index}" \
     --MSA_weights_location ${MSA_weights_location} \
     --VAE_checkpoint_location ${VAE_checkpoint_location} \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
-    --computation_mode ${computation_mode} \
-    --mutations_location ${mutations_location} \
-    --output_evol_indices_location ${output_evol_indices_location} \
-    --num_samples_compute_evol_indices ${num_samples_compute_evol_indices} \
-    --batch_size ${batch_size}
+    --training_logs_location ${training_logs_location} \
+    --skip_existing
