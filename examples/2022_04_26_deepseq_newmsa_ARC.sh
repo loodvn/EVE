@@ -53,9 +53,6 @@ source "$CONDA_BIN"/activate protein_env
 # Monitor GPU usage (store outputs in ./logs/gpu_logs/)
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
-# Monitor GPU usage (store outputs in ./logs/gpu_logs/)
-/home/lov701/job_gpu_monitor.sh --interval 1m logs/gpu_logs &
-
 # ARC
 export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
 export MSA_list='./data/mappings/eve_msa_mapping_20220427.csv'
