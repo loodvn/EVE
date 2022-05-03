@@ -20,7 +20,7 @@ if __name__ == '__main__':
                         help='model checkpoint name will be the protein name followed by this suffix')
     parser.add_argument('--model_parameters_location', type=str, help='Location of VAE model parameters')
     parser.add_argument('--training_logs_location', type=str, help='Location of VAE model parameters')
-    parser.add_argument("skip_existing", action="store_true", help="Skip training if model already exists")
+    parser.add_argument("--skip_existing", action="store_true", help="Skip training if model already exists")
     args = parser.parse_args()
 
     mapping_file = pd.read_csv(args.MSA_list)
