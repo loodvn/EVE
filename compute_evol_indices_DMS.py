@@ -25,6 +25,7 @@ if __name__=='__main__':
     parser.add_argument('--output_evol_indices_filename_suffix', default='', type=str, help='(Optional) Suffix to be added to output filename')
     parser.add_argument('--num_samples_compute_evol_indices', type=int, help='Num of samples to approximate delta elbo when computing evol indices')
     parser.add_argument('--batch_size', default=256, type=int, help='Batch size when computing evol indices')
+    parser.add_argument("--skip_existing", action="store_true", help="Skip scoring if output file already exists")
     args = parser.parse_args()
 
     print("Arguments:", args)
@@ -49,6 +50,19 @@ if __name__=='__main__':
         except:
             theta = 0.2
     print("Theta MSA re-weighting: "+str(theta))
+
+    evol_indices_output_filename = os.path.join(args.output_evol_indices_location, DMS_id + '_' + protein_name + '_' + str(
+        args.num_samples_compute_evol_indices) + '_samples' + args.output_evol_indices_filename_suffix + '.csv')
+
+    if os.path.isfile(evol_indices_output_filename):
+        print("Output file already exists: " + str(evol_indices_output_filename))
+
+        if args.skip_existing:
+            print("Skipping scoring since args.skip_existing is True")
+            sys.exit(0)
+        else:
+            print("Overwriting existing file: " + str(evol_indices_output_filename))
+            print("To skip scoring for existing files, use --skip_existing")
 
     data = data_utils.MSA_processing(
             MSA_location=msa_location,
@@ -101,8 +115,7 @@ if __name__=='__main__':
     df['mutant'] = list_valid_mutations
     df['evol_indices'] = evol_indices
     df = pd.DataFrame(df)
-    
-    evol_indices_output_filename = args.output_evol_indices_location+os.sep+DMS_id+'_'+protein_name+'_'+str(args.num_samples_compute_evol_indices)+'_samples'+args.output_evol_indices_filename_suffix+'.csv'
+
     try:
         keep_header = os.stat(evol_indices_output_filename).st_size == 0
     except:
