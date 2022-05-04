@@ -170,6 +170,8 @@ class MSA_processing:
 
         print ("Neff =",str(self.Neff))
         print ("Data Shape =",self.one_hot_encoding.shape)
+        print("Sequence weights shape:", self.weights.shape)
+        assert self.one_hot_encoding.shape[0] == self.weights.shape[0], "Number of sequences and sequence weights must match. One-hot-encoding shape: {}. Sequence weights shape: {}".format(self.one_hot_encoding.shape, self.weights.shape)
     
     def create_all_singles(self):
         start_idx = self.focus_start_loc
