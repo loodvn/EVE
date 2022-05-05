@@ -54,7 +54,8 @@ source "$CONDA_BIN"/activate protein_env
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
 # ARC
-export MSA_data_folder='/data/coml-ecr/grte2996/EVE/data/msa_tkmer_20220505_v7' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
+# Note that the MSAs are in $DATA on ARC
+export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220505_v7' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
 export MSA_list='./data/mappings/DMS_mapping_20220505.csv'  # Created using Javier's DMS_mapping_20220227.csv
 export MSA_weights_location='./data/weights_tkmer_20220505_v7'
 export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_tkmer_20220505_v7'
