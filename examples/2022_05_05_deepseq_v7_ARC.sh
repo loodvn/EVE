@@ -14,7 +14,7 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_v6"
+#SBATCH --job-name="eve_deepseq_v7"
 
 # Job array-specific
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
@@ -52,11 +52,11 @@ source "$CONDA_BIN"/activate protein_env
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
 # ARC
-export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
-export MSA_list='./data/mappings/eve_msa_mapping_20220427.csv'
-export MSA_weights_location='./data/weights'
-export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters'
-export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Essential for skip_existing to work # Copied from O2  # TODO Should make '2022_04_26_DeepSeq_msa_v6'
+export MSA_data_folder='/data/coml-ecr/grte2996/EVE/data/msa_tkmer_20220505_v7' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
+export MSA_list='./data/mappings/DMS_mapping_20220505.csv'  # Created using Javier's DMS_mapping_20220227.csv
+export MSA_weights_location='./data/weights_tkmer_20220505_v7'
+export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_tkmer_20220505_v7'
+export model_name_suffix='2022_05_05_DeepSeq_reproduce_v7'  # Essential for skip_existing to work # Copied from O2
 export model_parameters_location='./EVE/deepseq_model_params.json'
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}

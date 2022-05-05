@@ -56,11 +56,13 @@ if __name__ == '__main__':
         if os.path.isfile(checkpoint_filename_out):
             print("Model already exists, but overwriting. To skip existing models, use --skip_existing.")
 
+    weights_location = os.path.join(args.MSA_weights_location, protein_name + '_theta_' + str(theta) + '.npy')
+
     data = data_utils.MSA_processing(
         MSA_location=msa_location,
         theta=theta,
         use_weights=True,
-        weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
+        weights_location=weights_location,
     )
 
     model = VAE_model.VAE_model(
