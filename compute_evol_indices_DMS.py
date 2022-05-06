@@ -32,6 +32,7 @@ if __name__=='__main__':
 
     assert os.path.isfile(args.MSA_list), 'MSA list file does not exist: {}'.format(args.MSA_list)
     mapping_file = pd.read_csv(args.MSA_list)
+    print("Mapping file head:\n", mapping_file.head())
     DMS_id = mapping_file['DMS_id'][args.protein_index]
     protein_name = mapping_file['protein_name'][args.protein_index]
     DMS_filename = mapping_file['DMS_filename'][args.protein_index]
