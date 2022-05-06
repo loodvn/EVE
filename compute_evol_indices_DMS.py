@@ -64,6 +64,12 @@ if __name__=='__main__':
         else:
             print("Overwriting existing file: " + str(evol_indices_output_filename))
             print("To skip scoring for existing files, use --skip_existing")
+    # Check if surrounding directory exists
+    else:
+        assert os.path.isdir(os.path.dirname(evol_indices_output_filename)), \
+            'Output directory does not exist: {}. Please create directory before running script.\nOutput filename given: {}.'\
+            .format(os.path.dirname(evol_indices_output_filename), evol_indices_output_filename)
+
 
     data = data_utils.MSA_processing(
             MSA_location=msa_location,
@@ -71,13 +77,13 @@ if __name__=='__main__':
             use_weights=True,
             weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
     )
-    
+
     if args.computation_mode=="all_singles":
         data.save_all_singles(output_filename=args.all_singles_mutations_folder + os.sep + protein_name + "_all_singles.csv")
         args.mutations_location = args.all_singles_mutations_folder + os.sep + protein_name + "_all_singles.csv"
     else:
         args.mutations_location = args.mutations_location + os.sep + DMS_filename
-        
+
     model_name = protein_name + "_" + args.model_name_suffix
     print("Model name: "+str(model_name))
 
@@ -103,9 +109,9 @@ if __name__=='__main__':
         print("Unable to load VAE model checkpoint {}".format(checkpoint_name))
         print(e)
         sys.exit(0)
-    
+
     list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(msa_data=data,
-                                                    list_mutations_location=args.mutations_location, 
+                                                    list_mutations_location=args.mutations_location,
                                                     mutant_column=DMS_mutant_column,
                                                     num_samples=args.num_samples_compute_evol_indices,
                                                     batch_size=args.batch_size)
@@ -120,5 +126,5 @@ if __name__=='__main__':
     try:
         keep_header = os.stat(evol_indices_output_filename).st_size == 0
     except:
-        keep_header=True 
+        keep_header=True
     df.to_csv(path_or_buf=evol_indices_output_filename, index=False, mode='a', header=keep_header)
