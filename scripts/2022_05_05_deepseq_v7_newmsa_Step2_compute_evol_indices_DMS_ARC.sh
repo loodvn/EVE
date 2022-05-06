@@ -60,7 +60,7 @@ source "$CONDA_BIN"/activate protein_env
 
 # Note that the MSAs are in $DATA on ARC
 export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220505_v7' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220505_v7/'
-export MSA_list='./data/mappings/DMS_mapping_20220505.csv'  # Created using Javier's DMS_mapping_20220227.csv
+export MSA_list='./data/mappings/DMS_mapping_20220506.csv'  # Created using Javier's DMS_mapping_20220227.csv
 export MSA_weights_location='./data/weights_tkmer_20220505_v7'
 export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_tkmer_20220505_v7'
 export model_name_suffix='2022_05_05_DeepSeq_reproduce_v7'  # Essential for skip_existing to work # Copied from O2
