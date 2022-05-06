@@ -128,3 +128,5 @@ if __name__=='__main__':
     except:
         keep_header=True
     df.to_csv(path_or_buf=evol_indices_output_filename, index=False, mode='a', header=keep_header)
+
+    print("Done")
