@@ -34,11 +34,11 @@ if __name__=='__main__':
     mapping_file = pd.read_csv(args.MSA_list)
     print("Mapping file head:\n", mapping_file.head())
     DMS_id = mapping_file['DMS_id'][args.protein_index]
-    protein_name = mapping_file['protein_name'][args.protein_index]
+    protein_name = mapping_file['UniProt_ID'][args.protein_index]  # Using Javier's mapping file
     DMS_filename = mapping_file['DMS_filename'][args.protein_index]
     mutant = mapping_file['DMS_filename'][args.protein_index]
     msa_location = args.MSA_data_folder + os.sep + mapping_file['MSA_filename'][args.protein_index]
-    DMS_mutant_column = mapping_file['DMS_mutant_name'][args.protein_index]
+    DMS_mutant_column = mapping_file['DMS_mutant_column'][args.protein_index]  # Using Javier's mapping file
     print("Protein name: "+str(protein_name))
     print("MSA file: "+str(msa_location))
     print("DMS id: "+str(DMS_id))
