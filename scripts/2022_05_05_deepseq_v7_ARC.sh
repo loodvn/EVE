@@ -19,13 +19,13 @@
 # Job array-specific
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-##SBATCH --array=0-71  # Array end is inclusive
+#SBATCH --array=0-71  # Array end is inclusive
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Only running new MSAs and new DMSs
 # New MSAs: ["AACC1_PSEAI_Dandage_2018", "GFP_AEQVI_Sarkisyan_2016", "P53_HUMAN_Giacomelli_2018_NULL_Etoposide", "P53_HUMAN_Giacomelli_2018_NULL_Nutlin", "P53_HUMAN_Giacomelli_2018_WT_Nutlin", "PA_I34A1_Wu_2015", "POLG_CXB3N_Mattenberger_2021", "Q2N0S5_9HIV1_Haddox_2018", "REV_HV1H2_Fernandes_2016",  "SYUA_HUMAN_Newberry_2020", "TAT_HV1BR_Fernandes_2016", "DLG4_HUMAN_Faure_2021", "GRB2_HUMAN_Faure_2021"]
 # Using mapping_file.groupby("MSA_filename"}.ngroups to get MSA indices
-#SBATCH --array=7,18,27,28,41,44,45,48,52,60,62
+##SBATCH --array=7,18,27,28,41,44,45,48,52,60,62
 
 # Quite neat workflow:
 # Submit job array in held state, then release first job to test
