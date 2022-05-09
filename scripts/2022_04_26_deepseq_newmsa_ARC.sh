@@ -2,9 +2,9 @@
 #SBATCH --cpus-per-task 4
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
-#SBATCH -t 0-23:59                         # Runtime in D-HH:MM format
+#SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
 #SBATCH --gres=gpu:1
-#SBATCH --mem=20G                          # Memory total in MB (for all cores)
+#SBATCH --mem=60G                          # Memory total in MB (for all cores)
 
 # ARC
 #SBATCH --partition=short
@@ -20,6 +20,7 @@
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-71  # Array end is inclusive
+#SBATCH --array=7,17  # Rerunning missed MSA training files
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
