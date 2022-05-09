@@ -20,6 +20,7 @@
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-71  # Array end is inclusive
+#SBATCH --array=51  # tmp only running RASH_HUMAN_full_11-26-2021_b03.a2m
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -54,7 +55,7 @@ source "$CONDA_BIN"/activate protein_env
 # ARC
 export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
 export MSA_list='./data/mappings/eve_msa_mapping_20220427.csv'
-export MSA_weights_location='./data/weights'
+export MSA_weights_location='./data/weights_msa_tkmer_20220227_v6/'
 export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_v5_20220227'
 export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Essential for skip_existing to work # Copied from O2  # TODO Should make '2022_04_26_DeepSeq_msa_v6'
 export model_parameters_location='./EVE/deepseq_model_params.json'

@@ -4,7 +4,7 @@
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 0-23:59                         # Runtime in D-HH:MM format
 #SBATCH --gres=gpu:1
-#SBATCH --mem=20G                          # Memory total in MB (for all cores)
+#SBATCH --mem=40G                          # Memory total in MB (for all cores)
 
 # ARC
 #SBATCH --partition=short
@@ -21,6 +21,7 @@
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-86  # 88 DMSs, 72 MSAs # Array end is inclusive
+#SBATCH --array=1,22,23,35,69,8,62  # 1,22,23,35,69 OUT_OF_MEMORY and 8,62 FAILED
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -56,7 +57,7 @@ source "$CONDA_BIN"/activate protein_env
 
 export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
 export MSA_list='./data/mappings/DMS_mapping_20220506.csv'
-export MSA_weights_location='./data/weights'
+export MSA_weights_location='./data/weights_msa_tkmer_20220227_v6'
 export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_v5_20220227'
 export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Copied from O2
 export model_parameters_location='./EVE/deepseq_model_params.json'
