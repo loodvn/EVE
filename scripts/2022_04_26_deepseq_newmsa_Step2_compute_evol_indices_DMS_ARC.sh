@@ -57,7 +57,7 @@ source "$CONDA_BIN"/activate protein_env
 export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copied from O2 '/n/groups/marks/users/lood/DeepSequence_runs/msa_tkmer_20220227/'
 export MSA_list='./data/mappings/transfokmer_mapping_20220227_DMS.csv'
 export MSA_weights_location='./data/weights'
-export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters'
+export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_v5_20220227'
 export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Copied from O2
 export model_parameters_location='./EVE/deepseq_model_params.json'
 export training_logs_location='./logs/'
@@ -66,7 +66,7 @@ export protein_index=${SLURM_ARRAY_TASK_ID}
 export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
 export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Dataset_v5_20220227'
-export output_evol_indices_location='./results/evol_indices'
+export output_evol_indices_location='./results/evol_indices_20220501_v5'
 export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
 export num_samples_compute_evol_indices=20000
 export batch_size=2048
