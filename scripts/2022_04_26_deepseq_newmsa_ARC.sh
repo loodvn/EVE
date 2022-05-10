@@ -5,19 +5,19 @@
 #SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint='gpu_sku:A100|gpu_sku:RTX-A6000'
-##SBATCH --constraint=gpu_mem:40GB #|gpu_mem:48GB'
+#SBATCH --constraint=gpu_mem:40GB|gpu_mem:48GB
 # Use A100 GPUs, 40GB batch size
 #SBATCH --mem=80G                          # Memory total in MB (for all cores)
 
 # ARC
 #SBATCH --partition=short
 #SBATCH --qos=ecr
-#SBATCH --reservation=ecr202204
+##SBATCH --reservation=ecr202204
 
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_v6"
+#SBATCH --job-name="eve_deepseq_v6_bigbatch"
 
 # Job array-specific
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
@@ -63,7 +63,7 @@ export MSA_list='./data/mappings/eve_msa_mapping_20220427.csv'
 export MSA_weights_location='./data/weights_msa_tkmer_20220227_v6/'
 export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_v5_20220227'
 export model_name_suffix='2022_04_26_DeepSeq_reproduce'  # Essential for skip_existing to work # Copied from O2  # TODO Should make '2022_04_26_DeepSeq_msa_v6'
-export model_parameters_location='./EVE/deepseq_model_params.json'
+export model_parameters_location='./EVE/deepseq_model_params_bigbatch.json'
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}
 
