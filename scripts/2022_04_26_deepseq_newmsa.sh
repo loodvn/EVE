@@ -3,6 +3,7 @@
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
+#SBATCH -p gpu_quad
 #SBATCH --gres=gpu:a100:1
 #SBATCH --constraint=gpu_doublep
 #SBATCH --qos=gpuquad_qos
