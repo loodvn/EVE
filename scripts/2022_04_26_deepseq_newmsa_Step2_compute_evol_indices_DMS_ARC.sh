@@ -4,7 +4,7 @@
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
 #SBATCH --gres=gpu:1
-#SBATCH --constraint=gpu_sku:A100|gpu_sku:RTX-A6000
+#SBATCH --constraint=gpu_sku:A100  #|gpu_sku:RTX-A6000
 ##SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
 #SBATCH --mem=120G                          # Memory total in MB (for all cores)
 
@@ -17,7 +17,7 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_dms_v6"
+#SBATCH --job-name="eve_deepseq_dms_v6_bigbatch"
 
 # Job array-specific
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
