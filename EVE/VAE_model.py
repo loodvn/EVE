@@ -288,9 +288,16 @@ class VAE_model(nn.Module):
     def compute_evol_indices(self, msa_data, list_mutations_location, num_samples, batch_size=256, mutant_column="mutations", num_chunks=1):
         list_valid_mutations=[]
         evol_indices=[]
+
         full_data = pd.read_csv(list_mutations_location, header=0)
+        print("Full length: ", len(full_data))
         size_per_chunk = int(len(full_data) / num_chunks)
         print("size_per_chunk: "+str(size_per_chunk))
+
+        print("Debugging:")
+        print("uniprot_focus_col_to_wt_aa_dict: {}".format(msa_data.uniprot_focus_col_to_wt_aa_dict))
+        print("mutant_to_letter_pos_idx_focus_list: {}".format(msa_data.mutant_to_letter_pos_idx_focus_list))
+
         for chunk in range(num_chunks):
             print("chunk #: "+str(chunk))
             data_chunk = full_data[chunk*size_per_chunk:(chunk+1)*size_per_chunk]
@@ -311,10 +318,6 @@ class VAE_model(nn.Module):
         list_valid_mutations = ['wt']
         list_valid_mutated_sequences = {}
         list_valid_mutated_sequences['wt'] = msa_data.focus_seq_trimmed # first sequence in the list is the wild_type
-
-        print("Debugging:")
-        print("uniprot_focus_col_to_wt_aa_dict: {}".format(msa_data.uniprot_focus_col_to_wt_aa_dict))
-        print("mutant_to_letter_pos_idx_focus_list: {}".format(msa_data.mutant_to_letter_pos_idx_focus_list))
 
         for mutation in list_mutations[mutant_column]:
             try:

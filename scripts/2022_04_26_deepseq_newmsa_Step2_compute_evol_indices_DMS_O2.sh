@@ -12,13 +12,13 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_dms_v6_small"
+#SBATCH --job-name="eve_deepseq_dms_v6_bigbatch"
 
 # Job array-specific
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-86  # 88 DMSs, 72 MSAs # Array end is inclusive
-#SBATCH --array=35,69  # OOM at 60GB
+#SBATCH --array=22,23  # OOM at 60GB
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -66,7 +66,7 @@ export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Data
 export output_evol_indices_location='./results/evol_indices_20220501_v5'
 export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
 export num_samples_compute_evol_indices=20000
-export batch_size=2048  # Pushing batch size to limit of GPU memory
+export batch_size=8192  # Pushing batch size to limit of GPU memory
 
 python compute_evol_indices_DMS.py \
     --MSA_data_folder ${MSA_data_folder} \
