@@ -4,8 +4,8 @@
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
 #SBATCH --gres=gpu:1
-##SBATCH --constraint='gpu_sku:A100|gpu_sku:RTX-A6000'
-#SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
+#SBATCH --constraint='gpu_sku:A100|gpu_sku:RTX-A6000'
+##SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
 #SBATCH --mem=120G                          # Memory total in MB (for all cores)
 
 # ARC
