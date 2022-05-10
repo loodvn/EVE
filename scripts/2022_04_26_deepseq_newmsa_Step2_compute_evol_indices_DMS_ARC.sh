@@ -72,7 +72,7 @@ export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Data
 export output_evol_indices_location='./results/evol_indices_20220501_v5'
 export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
 export num_samples_compute_evol_indices=20000
-export batch_size=8192  # Pushing batch size up to speed up
+export batch_size=16384  # Pushing batch size to limit of GPU memory
 
 python compute_evol_indices_DMS.py \
     --MSA_data_folder ${MSA_data_folder} \
