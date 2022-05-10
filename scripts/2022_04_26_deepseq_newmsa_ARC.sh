@@ -1,9 +1,11 @@
 #!/bin/bash
-#SBATCH --cpus-per-task 8
+#SBATCH --cpus-per-task 4
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:1
+##SBATCH --constraint='gpu_sku:A100|gpu_sku:RTX-A6000'
+#SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
 # Use A100 GPUs, 40GB batch size
 #SBATCH --mem=80G                          # Memory total in MB (for all cores)
 
