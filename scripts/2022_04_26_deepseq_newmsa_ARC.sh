@@ -34,6 +34,8 @@
 ################################################################################
 
 set -e # fail fully on first line failure (from Joost slurm_for_ml)
+# Make prints more stable (Milad)
+export PYTHONUNBUFFERED=1
 
 echo "hostname: $(hostname)"
 echo "Running from: $(pwd)"
