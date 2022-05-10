@@ -39,10 +39,10 @@ echo "Submitted from SLURM_SUBMIT_DIR: ${SLURM_SUBMIT_DIR}"
 
 mkdir -p ./logs/slurm_files   # Script fails silently if the slurm output directory doesn't exist
 
-# ARC (copied from protein_retrieval repo)
-export CONDA_ENVS_PATH=$TMPDIR/conda_envs
-export CONDA_PKGS_DIRS=$DATA/conda_pkgs
-export CONDA_BIN="$HOME"/miniconda3/bin
+# O2 conda env
+export CONDA_ENVS_PATH=/home/lov701/miniconda3/envs/
+export CONDA_PKGS_DIRS=/home/lov701/miniconda3/pkgs/
+export CONDA_BIN=~/miniconda3/bin/
 
 # Not running update, assuming it's done already
 #"$CONDA_BIN"/conda-env update -f environment.yml
