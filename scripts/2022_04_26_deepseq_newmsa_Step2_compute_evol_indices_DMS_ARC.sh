@@ -4,7 +4,9 @@
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
 #SBATCH --gres=gpu:1
-#SBATCH --mem=80G                          # Memory total in MB (for all cores)
+##SBATCH --constraint='gpu_sku:A100|gpu_sku:RTX-A6000'
+#SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
+#SBATCH --mem=120G                          # Memory total in MB (for all cores)
 
 # ARC
 #SBATCH --partition=short
@@ -21,7 +23,7 @@
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-86  # 88 DMSs, 72 MSAs # Array end is inclusive
-#SBATCH --array=22,23,35,69  # OOM; Rerunning failed MSAs
+#SBATCH --array=35,69  # OOM at 60GB
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -70,7 +72,7 @@ export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Data
 export output_evol_indices_location='./results/evol_indices_20220501_v5'
 export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
 export num_samples_compute_evol_indices=20000
-export batch_size=2048
+export batch_size=8192  # Pushing batch size up to speed up
 
 python compute_evol_indices_DMS.py \
     --MSA_data_folder ${MSA_data_folder} \
