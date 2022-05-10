@@ -7,12 +7,12 @@
 #SBATCH -p gpu_quad
 #SBATCH --constraint=gpu_doublep
 #SBATCH --qos=gpuquad_qos
-#SBATCH --mem=120G                          # Memory total in MB (for all cores)
+#SBATCH --mem=80G                          # Memory total in MB (for all cores)
 
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_dms_v6_4096"
+#SBATCH --job-name="eve_deepseq_dms_v6_small"
 
 # Job array-specific
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
