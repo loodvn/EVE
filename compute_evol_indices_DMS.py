@@ -131,6 +131,10 @@ if __name__=='__main__':
         keep_header = os.stat(evol_indices_output_filename).st_size == 0
     except:
         keep_header=True
+
+    if not keep_header:
+        print("Warning: File already exists, appending scores below.")
+
     df.to_csv(path_or_buf=evol_indices_output_filename, index=False, mode='a', header=keep_header)
 
     print("Done")
