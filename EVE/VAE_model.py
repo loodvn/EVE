@@ -311,6 +311,10 @@ class VAE_model(nn.Module):
         """
         The column in the list_mutations dataframe that contains the mutant(s) for a given variant should be called "mutations"
         """
+
+        # Note: For chunked calculations: would need to pass in wt ELBO (for the mean - mean[0] line),
+        #  or calculate the ELBO in compute_evol_indices
+
         #Multiple mutations are to be passed colon-separated
         list_mutations=list_mutations_location #pd.read_csv(list_mutations_location, header=0)
         
@@ -372,7 +376,7 @@ class VAE_model(nn.Module):
                     k = msa_data.aa_dict[letter]
                     mutated_sequences_one_hot[i,j,k] = 1.0
 
-        # TODO for low memory might need to calculate one-hot on the fly, or fix chunked mean/std calculation
+        # TODO for low memory might need to calculate one-hot on the fly, or fix chunked calculation with elbo - elbo_wt
         mutated_sequences_one_hot = torch.tensor(mutated_sequences_one_hot)
         dataloader = torch.utils.data.DataLoader(mutated_sequences_one_hot, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
@@ -417,15 +421,40 @@ class VAE_model(nn.Module):
                 delta_elbos = mean_predictions - mean_predictions[0]
                 evol_indices = - delta_elbos.detach().cpu().numpy()
         elif aggregation_method == "online":
-            # Extension: Completely online, reduce memory by factor of num_samples (20k)
-            # # Using Welford's method https://stackoverflow.com/a/15638726/10447904
-            # # Implement online variance calculation
-            # batch_mean = seq_predictions.mean(dim=1, keepdim=False)
-            # batch_variance = seq_predictions.var(dim=1, keepdim=False)
-            # batch_n = len(x)
-            # # Update online mean and variance using e.g. https://notmatthancock.github.io/2017/03/23/simple-batch-stat-updates.html
-            # or https://github.com/PyTorchLightning/metrics/blob/a971c6b456e40728b34494ff9186af20da46cb5b/torchmetrics/regression/pearson.py#L43 for inspiration
-            raise NotImplementedError("Online aggregation not implemented yet")
+            # Extension: Completely online, reduce memory by factor of num_samples (20k) with hopefully small overhead
+            mean_predictions = torch.zeros(len(list_valid_mutations))
+            std_predictions = torch.zeros(len(list_valid_mutations))
+            with torch.no_grad():
+                for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
+                    x = batch.type(self.dtype).to(self.device)
+
+                    # Simplest: Aggregate mean and std online per sample
+                    online_mean = torch.zeros(len(x), dtype=self.dtype, device=self.device)
+                    online_s = torch.zeros(len(x), dtype=self.dtype, device=self.device)
+
+                    for j in tqdm.tqdm(range(num_samples),
+                                       'Looping through number of samples for batch #: ' + str(i + 1)):
+                        seq_predictions, _, _ = self.all_likelihood_components(x)
+                        # Using Welford's method https://stackoverflow.com/a/15638726/10447904
+                        # All still on GPU
+                        x = seq_predictions
+                        if j == 0:
+                            online_mean = x
+                            # online_s stays 0
+                        else:
+                            delta = x - online_mean
+                            online_mean = online_mean + delta / (j+1)  # / n in original formula
+                            online_s = online_s + delta * (x - online_mean)
+
+                    variance = online_s / (num_samples-1)  # j will end as n-1
+                    std = variance.sqrt()
+                    # Fill in mean and std arrays for this batch
+                    mean_predictions[i*batch_size:i*batch_size+len(x)] = online_mean.detach().cpu()
+                    std_predictions[i*batch_size:i*batch_size+len(x)] = std.detach().cpu()
+                    tqdm.tqdm.write('\n')
+
+                delta_elbos = mean_predictions - mean_predictions[0]
+                evol_indices = - delta_elbos.detach().cpu().numpy()
         else:
             raise ValueError("Invalid aggregation method")
 
