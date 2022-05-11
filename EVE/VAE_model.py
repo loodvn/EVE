@@ -285,7 +285,7 @@ class VAE_model(nn.Module):
             'training_parameters':training_parameters,
             }, model_checkpoint)
     
-    def compute_evol_indices(self, msa_data, list_mutations_location, num_samples, batch_size=256, mutant_column="mutations", num_chunks=1):
+    def compute_evol_indices(self, msa_data, list_mutations_location, num_samples, batch_size=256, mutant_column="mutations", num_chunks=1, aggregation_method="full"):
         list_valid_mutations=[]
         evol_indices=[]
 
@@ -301,13 +301,13 @@ class VAE_model(nn.Module):
         for chunk in range(num_chunks):
             print("chunk #: "+str(chunk))
             data_chunk = full_data[chunk*size_per_chunk:(chunk+1)*size_per_chunk]
-            list_valid_mutations_chunk, evol_indices_chunk, _, _ = self.compute_evol_indices_chunk(msa_data=msa_data, list_mutations_location=data_chunk, 
-                                                                                        num_samples=num_samples, batch_size=batch_size, mutant_column=mutant_column)
+            list_valid_mutations_chunk, evol_indices_chunk, _, _ = self.compute_evol_indices_chunk(msa_data=msa_data, list_mutations_location=data_chunk,
+                                                                                        num_samples=num_samples, batch_size=batch_size, mutant_column=mutant_column, aggregation_method=aggregation_method)
             list_valid_mutations.extend(list(list_valid_mutations_chunk))
             evol_indices.extend(list(evol_indices_chunk))
         return list_valid_mutations, evol_indices , '', ''
 
-    def compute_evol_indices_chunk(self, msa_data, list_mutations_location, num_samples, batch_size=256, mutant_column="mutations"):
+    def compute_evol_indices_chunk(self, msa_data, list_mutations_location, num_samples, batch_size=256, mutant_column="mutations", aggregation_method="full"):
         """
         The column in the list_mutations dataframe that contains the mutant(s) for a given variant should be called "mutations"
         """
@@ -318,6 +318,9 @@ class VAE_model(nn.Module):
         list_valid_mutations = ['wt']
         list_valid_mutated_sequences = {}
         list_valid_mutated_sequences['wt'] = msa_data.focus_seq_trimmed # first sequence in the list is the wild_type
+
+        if aggregation_method not in ["full", "batch", "online"]:
+            raise ValueError("Invalid aggregation method: {}".format(aggregation_method))
 
         for mutation in list_mutations[mutant_column]:
             try:
@@ -369,20 +372,61 @@ class VAE_model(nn.Module):
                     k = msa_data.aa_dict[letter]
                     mutated_sequences_one_hot[i,j,k] = 1.0
 
+        # TODO for low memory might need to calculate one-hot on the fly, or fix chunked mean/std calculation
         mutated_sequences_one_hot = torch.tensor(mutated_sequences_one_hot)
         dataloader = torch.utils.data.DataLoader(mutated_sequences_one_hot, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
-        prediction_matrix = torch.zeros((len(list_valid_mutations),num_samples))
 
-        with torch.no_grad():
-            for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
-                x = batch.type(self.dtype).to(self.device)
-                for j in tqdm.tqdm(range(num_samples), 'Looping through number of samples for batch #: '+str(i+1)):
-                    seq_predictions, _, _ = self.all_likelihood_components(x)
-                    prediction_matrix[i*batch_size:i*batch_size+len(x),j] = seq_predictions
-                tqdm.tqdm.write('\n')
-            mean_predictions = prediction_matrix.mean(dim=1, keepdim=False)
-            std_predictions = prediction_matrix.std(dim=1, keepdim=False)
-            delta_elbos = mean_predictions - mean_predictions[0]
-            evol_indices =  - delta_elbos.detach().cpu().numpy()
+        if aggregation_method == "full":
+            prediction_matrix = torch.zeros((len(list_valid_mutations), num_samples), dtype=self.dtype)
+            with torch.no_grad():
+                for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
+                    x = batch.type(self.dtype).to(self.device)
+                    for j in tqdm.tqdm(range(num_samples),
+                                       'Looping through number of samples for batch #: ' + str(i + 1)):
+                        seq_predictions, _, _ = self.all_likelihood_components(x)
+                        prediction_matrix[i * batch_size:i * batch_size + len(x), j] = seq_predictions
+                    tqdm.tqdm.write('\n')
+                mean_predictions = prediction_matrix.mean(dim=1, keepdim=False)
+                std_predictions = prediction_matrix.std(dim=1, keepdim=False)
+                delta_elbos = mean_predictions - mean_predictions[0]
+                evol_indices = - delta_elbos.detach().cpu().numpy()
+
+        elif aggregation_method == "batch":
+            # Reduce memory by factor of num_batches (num_valid_mutations / batch_size)
+            # Note: This will mean that higher memory GPU needs higher RAM because we store larger sample batches before aggregating
+            mean_predictions = torch.zeros(len(list_valid_mutations))
+            std_predictions = torch.zeros(len(list_valid_mutations))
+
+            with torch.no_grad():
+                for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
+                    x = batch.type(self.dtype).to(self.device)
+
+                    # Simplest: Aggregate mean and std each batch (instead of online per sample)
+                    # Reduce memory by factor of num_batches (num_valid_mutations / batch_size)
+                    batch_samples = torch.zeros(size=(len(x), 20_000), dtype=self.dtype)  # Store these on CPU to save GPU memory
+                    for j in tqdm.tqdm(range(num_samples),
+                                       'Looping through number of samples for batch #: ' + str(i + 1)):
+                        seq_predictions, _, _ = self.all_likelihood_components(x)
+                        batch_samples[:, j] = seq_predictions.detach().cpu()
+
+                    # Aggregate mean and std for this batch, this should be negligibly quick
+                    mean_predictions[i*batch_size:i*batch_size+len(x)] = batch_samples.mean(dim=1, keepdim=False)
+                    std_predictions[i*batch_size:i*batch_size+len(x)] = batch_samples.std(dim=1, keepdim=False)
+                    tqdm.tqdm.write('\n')
+
+                delta_elbos = mean_predictions - mean_predictions[0]
+                evol_indices = - delta_elbos.detach().cpu().numpy()
+        elif aggregation_method == "online":
+            # Extension: Completely online, reduce memory by factor of num_samples (20k)
+            # # Using Welford's method https://stackoverflow.com/a/15638726/10447904
+            # # Implement online variance calculation
+            # batch_mean = seq_predictions.mean(dim=1, keepdim=False)
+            # batch_variance = seq_predictions.var(dim=1, keepdim=False)
+            # batch_n = len(x)
+            # # Update online mean and variance using e.g. https://notmatthancock.github.io/2017/03/23/simple-batch-stat-updates.html
+            # or https://github.com/PyTorchLightning/metrics/blob/a971c6b456e40728b34494ff9186af20da46cb5b/torchmetrics/regression/pearson.py#L43 for inspiration
+            raise NotImplementedError("Online aggregation not implemented yet")
+        else:
+            raise ValueError("Invalid aggregation method")
 
         return list_valid_mutations, evol_indices, mean_predictions[0].detach().cpu().numpy(), std_predictions.detach().cpu().numpy()

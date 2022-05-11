@@ -114,7 +114,8 @@ if __name__=='__main__':
                                                     list_mutations_location=args.mutations_location,
                                                     mutant_column=DMS_mutant_column,
                                                     num_samples=args.num_samples_compute_evol_indices,
-                                                    batch_size=args.batch_size)
+                                                    batch_size=args.batch_size,
+                                                    aggregation_method="batch")
 
     df = {}
     df['protein_name'] = protein_name
