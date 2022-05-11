@@ -1,9 +1,11 @@
 import os,sys
 import json
 import argparse
+from resource import getrusage, RUSAGE_SELF
+
 import pandas as pd
 import torch
-from torch.profiler import profile, ProfilerActivity
+# from torch.profiler import profile, ProfilerActivity
 
 from EVE import VAE_model
 from utils import data_utils
@@ -112,17 +114,18 @@ if __name__=='__main__':
         print(e)
         sys.exit(0)
 
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
-        list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(
-            msa_data=data,
-            list_mutations_location=args.mutations_location,
-            mutant_column=DMS_mutant_column,
-            num_samples=args.num_samples_compute_evol_indices,
-            batch_size=args.batch_size,
-            aggregation_method=args.aggregation_method
-        )
+    # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
+    list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(
+        msa_data=data,
+        list_mutations_location=args.mutations_location,
+        mutant_column=DMS_mutant_column,
+        num_samples=args.num_samples_compute_evol_indices,
+        batch_size=args.batch_size,
+        aggregation_method=args.aggregation_method
+    )
 
-    print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=10))
+    # print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=10))
+    # print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
 
     df = {}
     df['protein_name'] = protein_name
@@ -140,5 +143,7 @@ if __name__=='__main__':
         print("Warning: File already exists, appending scores below.")
 
     df.to_csv(path_or_buf=evol_indices_output_filename, index=False, mode='a', header=keep_header)
+
+    print(f"Peak memory in GB: {getrusage(RUSAGE_SELF).ru_maxrss / 1024**2:.3f}")
 
     print("Done")
