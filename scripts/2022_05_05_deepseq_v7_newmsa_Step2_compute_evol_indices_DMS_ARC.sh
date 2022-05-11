@@ -26,6 +26,7 @@
 # Only running new MSAs and new DMSs
 # New MSAs: ["AACC1_PSEAI_Dandage_2018", "GFP_AEQVI_Sarkisyan_2016", "P53_HUMAN_Giacomelli_2018_NULL_Etoposide", "P53_HUMAN_Giacomelli_2018_NULL_Nutlin", "P53_HUMAN_Giacomelli_2018_WT_Nutlin", "PA_I34A1_Wu_2015", "POLG_CXB3N_Mattenberger_2021", "Q2N0S5_9HIV1_Haddox_2018", "REV_HV1H2_Fernandes_2016",  "SYUA_HUMAN_Newberry_2020", "TAT_HV1BR_Fernandes_2016", "DLG4_HUMAN_Faure_2021", "GRB2_HUMAN_Faure_2021"]
 #SBATCH --array=8,24,33,34,48,49,50,54,55,59,63,74,76  # Careful to use DMS indices, not MSA indices
+#SBATCH --array=24,34  # DLG4_HUMAN_Faure_2021, GRB2_HUMAN_Faure_2021
 
 # Quite neat workflow:
 # Submit job array in held state, then release first job to test
@@ -70,8 +71,8 @@ export protein_index=${SLURM_ARRAY_TASK_ID}
 
 export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
-export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Dataset_v5_20220227_20220505_v7'
-export output_evol_indices_location='./results/evol_indices_20220505_v7'
+export mutations_location='/data/coml-ecr/scro3775/protein/Protein_transformer/DMS/DMS_Benchmarking_Dataset_v5_20220227'
+export output_evol_indices_location='./results/evol_indices_20220505_v7_rescore'
 export output_evol_indices_filename_suffix='_2022_05_05_DeepSeq_reproduce_v7'
 export num_samples_compute_evol_indices=20000
 export batch_size=2048

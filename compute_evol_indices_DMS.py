@@ -46,6 +46,7 @@ if __name__=='__main__':
     print("Protein name: "+str(protein_name))
     print("MSA file: "+str(msa_location))
     print("DMS id: "+str(DMS_id))
+    assert DMS_filename.startswith(DMS_id), 'DMS id does not match DMS filename: {} vs {}'.format(DMS_id, DMS_filename)
 
     if args.theta_reweighting is not None:
         theta = args.theta_reweighting
