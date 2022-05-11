@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint=gpu_sku:A100  #|gpu_sku:RTX-A6000
 ##SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
-#SBATCH --mem=120G                          # Memory total in MB (for all cores)
+#SBATCH --mem=20G                          # Memory total in MB (for all cores)
 
 # ARC
 #SBATCH --partition=short
@@ -16,13 +16,13 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_dms_v6_bigbatch"
+#SBATCH --job-name="eve_deepseq_dms_v6_memory"
 
 # Job array-specific
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-#SBATCH --array=0-86  # 88 DMSs, 72 MSAs # Array end is inclusive
-#SBATCH --array=35,69  # OOM at 60GB
+##SBATCH --array=0-86  # 87 DMSs, 72 MSAs # Array end is inclusive
+#SBATCH --array=57  # Testing small DMSs
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -68,7 +68,7 @@ export protein_index=${SLURM_ARRAY_TASK_ID}
 export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
 export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Dataset_v5_20220227_old'
-export output_evol_indices_location='./results/evol_indices_20220501_v5'
+export output_evol_indices_location='./results/evol_indices_20220501_v5_memory'  # Experimental output location
 export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
 export num_samples_compute_evol_indices=20000
 export batch_size=65536  # Pushing batch size to limit of GPU memory
