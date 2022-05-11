@@ -367,7 +367,7 @@ class VAE_model(nn.Module):
                 list_valid_mutations.append(mutation)
                 list_valid_mutated_sequences[mutation] = ''.join(mutated_sequence)
 
-        #One-hot encoding of mutated sequences
+        # One-hot encoding of mutated sequences
         mutated_sequences_one_hot = np.zeros((len(list_valid_mutations),len(msa_data.focus_cols),len(msa_data.alphabet)))
         for i,mutation in enumerate(list_valid_mutations):
             sequence = list_valid_mutated_sequences[mutation]
@@ -456,6 +456,6 @@ class VAE_model(nn.Module):
                 delta_elbos = mean_predictions - mean_predictions[0]
                 evol_indices = - delta_elbos.detach().cpu().numpy()
         else:
-            raise ValueError("Invalid aggregation method")
+            raise ValueError("Invalid aggregation method. Must be one of 'full', 'batch' or 'online'.")
 
         return list_valid_mutations, evol_indices, mean_predictions[0].detach().cpu().numpy(), std_predictions.detach().cpu().numpy()
