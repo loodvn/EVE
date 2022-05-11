@@ -26,7 +26,7 @@ if __name__=='__main__':
     parser.add_argument('--num_samples_compute_evol_indices', type=int, help='Num of samples to approximate delta elbo when computing evol indices')
     parser.add_argument('--batch_size', default=256, type=int, help='Batch size when computing evol indices')
     parser.add_argument("--skip_existing", action="store_true", help="Skip scoring if output file already exists")
-    parser.add_argument("--aggregation_method", choices=["full", "batch"], default="full", help="Method to aggregate evol indices")
+    parser.add_argument("--aggregation_method", choices=["full", "batch", "online"], default="full", help="Method to aggregate evol indices")
     args = parser.parse_args()
 
     print("Arguments:", args)
@@ -111,12 +111,14 @@ if __name__=='__main__':
         print(e)
         sys.exit(0)
 
-    list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(msa_data=data,
-                                                    list_mutations_location=args.mutations_location,
-                                                    mutant_column=DMS_mutant_column,
-                                                    num_samples=args.num_samples_compute_evol_indices,
-                                                    batch_size=args.batch_size,
-                                                    aggregation_method="batch")
+    list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(
+        msa_data=data,
+        list_mutations_location=args.mutations_location,
+        mutant_column=DMS_mutant_column,
+        num_samples=args.num_samples_compute_evol_indices,
+        batch_size=args.batch_size,
+        aggregation_method=args.aggregation_method
+    )
 
     df = {}
     df['protein_name'] = protein_name
