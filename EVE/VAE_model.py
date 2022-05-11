@@ -437,14 +437,13 @@ class VAE_model(nn.Module):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
                         # Using Welford's method https://stackoverflow.com/a/15638726/10447904
                         # All still on GPU
-                        x = seq_predictions
                         if j == 0:
-                            online_mean = x
+                            online_mean = seq_predictions.detach()
                             # online_s stays 0
                         else:
-                            delta = x - online_mean
+                            delta = seq_predictions - online_mean
                             online_mean = online_mean + delta / (j+1)  # / n in original formula
-                            online_s = online_s + delta * (x - online_mean)
+                            online_s = online_s + delta * (seq_predictions - online_mean)
 
                     variance = online_s / (num_samples-1)  # j will end as n-1
                     std = variance.sqrt()
