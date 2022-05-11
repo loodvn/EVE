@@ -381,11 +381,12 @@ class VAE_model(nn.Module):
         # TODO for low memory might need to calculate one-hot on the fly, or fix chunked calculation with elbo - elbo_wt
         mutated_sequences_one_hot = torch.tensor(mutated_sequences_one_hot)
         # https://stackoverflow.com/questions/54361763/pytorch-why-is-the-memory-occupied-by-the-tensor-variable-so-small/54365012#54365012
-        print(f"tmp debug: storage size of mutated_sequences_one_hot: {sys.getsizeof(mutated_sequences_one_hot.storage())}")
+        print(f"tmp debug: storage size of mutated_sequences_one_hot: {sys.getsizeof(mutated_sequences_one_hot.storage())/1e9:.4f} GB")
         dataloader = torch.utils.data.DataLoader(mutated_sequences_one_hot, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
         if aggregation_method == "full":
             prediction_matrix = torch.zeros((len(list_valid_mutations), num_samples), dtype=self.dtype)
+            print(f"tmp debug: storage size of mutated_sequences_one_hot: {sys.getsizeof(prediction_matrix.storage()) / 1e9:.4f} GB")
             with torch.no_grad():
                 for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
                     x = batch.type(self.dtype).to(self.device)
