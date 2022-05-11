@@ -85,5 +85,5 @@ python compute_evol_indices_DMS.py \
     --mutations_location ${mutations_location} \
     --output_evol_indices_location ${output_evol_indices_location} \
     --num_samples_compute_evol_indices ${num_samples_compute_evol_indices} \
-    --batch_size ${batch_size} \
-    --skip_existing
+    --batch_size ${batch_size}
+#    --skip_existing  # Don't skip for experiments measuring runtime
