@@ -432,7 +432,7 @@ class VAE_model(nn.Module):
             with torch.no_grad():
                 for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
                     from utils.profile import get_biggest_vars
-                    get_biggest_vars(locals())
+                    print(get_biggest_vars(locals()))
 
                     x = batch.type(self.dtype).to(self.device)
                     # Simplest: Aggregate mean and std online per sample
