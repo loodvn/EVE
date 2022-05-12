@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint=gpu_sku:A100  #|gpu_sku:RTX-A6000
 ##SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
-#SBATCH --mem=160G                          # Memory total in MB (for all cores)
+#SBATCH --mem=100G                          # Memory total in MB (for all cores)
 
 # ARC
 #SBATCH --partition=short
