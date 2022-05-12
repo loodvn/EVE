@@ -411,7 +411,7 @@ class VAE_model(nn.Module):
                 for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
                     x = batch.type(self.dtype).to(self.device)
                     for j in tqdm.tqdm(range(num_samples),
-                                       'Looping through number of samples for batch #: ' + str(i + 1)):
+                                       'Looping through number of samples for batch #: ' + str(i + 1), mininterval=1):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
                         prediction_matrix[i * batch_size:i * batch_size + len(x), j] = seq_predictions
                     tqdm.tqdm.write('\n')
@@ -434,7 +434,7 @@ class VAE_model(nn.Module):
                     # Reduce memory by factor of num_batches (num_valid_mutations / batch_size)
                     batch_samples = torch.zeros(size=(len(x), 20_000), dtype=self.dtype)  # Store these on CPU to save GPU memory
                     for j in tqdm.tqdm(range(num_samples),
-                                       'Looping through number of samples for batch #: ' + str(i + 1)):
+                                       'Looping through number of samples for batch #: ' + str(i + 1), mininterval=1):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
                         batch_samples[:, j] = seq_predictions.detach().cpu()
 
@@ -460,7 +460,7 @@ class VAE_model(nn.Module):
                     # Run this once per batch to speed up remaining loop
                     mu, log_var = self.encoder(x)
 
-                    for j in tqdm.tqdm(range(num_samples), 'Looping through number of samples for batch #: ' + str(i + 1)):
+                    for j in tqdm.tqdm(range(num_samples), 'Looping through number of samples for batch #: ' + str(i + 1), mininterval=1):
                         seq_predictions, _, _ = self.all_likelihood_components_z(x, mu, log_var)
                         # Using Welford's method https://stackoverflow.com/a/15638726/10447904
                         # All still on GPU
