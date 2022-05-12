@@ -1,5 +1,7 @@
+import datetime
 import os
 import sys
+from resource import getrusage, RUSAGE_SELF
 
 import numpy as np
 import pandas as pd
@@ -432,6 +434,7 @@ class VAE_model(nn.Module):
             with torch.no_grad():
                 for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
                     x = batch.type(self.dtype).to(self.device)
+                    print(f"tmp Current time: {datetime.datetime.now()}, peak memory usage: {getrusage(RUSAGE_SELF).ru_maxrss}")
                     # Simplest: Aggregate mean and std online per sample
                     online_mean = torch.zeros(len(x), dtype=self.dtype, device=self.device)
                     online_s = torch.zeros(len(x), dtype=self.dtype, device=self.device)

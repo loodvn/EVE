@@ -1,3 +1,4 @@
+import datetime
 import os,sys
 import json
 import argparse
@@ -83,6 +84,9 @@ if __name__=='__main__':
             weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
     )
 
+    print("MSA data object loaded.")
+    print(f"Current time: {datetime.datetime.now()}, peak memory usage: {getrusage(RUSAGE_SELF).ru_maxrss}")
+
     if args.computation_mode=="all_singles":
         data.save_all_singles(output_filename=args.all_singles_mutations_folder + os.sep + protein_name + "_all_singles.csv")
         args.mutations_location = args.all_singles_mutations_folder + os.sep + protein_name + "_all_singles.csv"
@@ -114,6 +118,8 @@ if __name__=='__main__':
         print("Unable to load VAE model checkpoint {}".format(checkpoint_name))
         print(e)
         sys.exit(0)
+
+    print(f"Current time: {datetime.datetime.now()}, peak memory usage: {getrusage(RUSAGE_SELF).ru_maxrss}")
 
     # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
     list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(
