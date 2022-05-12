@@ -62,7 +62,7 @@ export protein_index=${SLURM_ARRAY_TASK_ID}
 
 export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
-export mutations_location='/n/groups/marks/users/lood/DeepSequence_runs/data/DMS_Benchmarking_Dataset_v5_20220227_20220505_v7/'
+export mutations_location='/n/groups/marks/users/lood/DeepSequence_runs/data/SPG1_custom/'
 export output_evol_indices_location='./results/evol_indices_20220501_v5_memory'  # For testing memory issues
 export output_evol_indices_filename_suffix='_2022_05_11_custom_SPG1'
 export num_samples_compute_evol_indices=20000
