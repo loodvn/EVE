@@ -66,7 +66,7 @@ export protein_index=${SLURM_ARRAY_TASK_ID}
 export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
 export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/SPG1_custom/'
-export output_evol_indices_location='./results/evol_indices_20220501_v5_spg1/'  # Custom output location
+export output_evol_indices_location='./results/evol_indices_20220501_v5_spg1_full/'  # Custom output location
 export output_evol_indices_filename_suffix='_2022_05_11_custom_SPG1'
 export num_samples_compute_evol_indices=20000
 export batch_size=8196  # Pushing batch size to limit of GPU memory
@@ -84,5 +84,5 @@ python compute_evol_indices_DMS.py \
     --output_evol_indices_location ${output_evol_indices_location} \
     --num_samples_compute_evol_indices ${num_samples_compute_evol_indices} \
     --batch_size ${batch_size} \
-    --aggregation_method "online" \
+    --aggregation_method "full" \
     --skip_existing  # Don't skip for experiments measuring runtime

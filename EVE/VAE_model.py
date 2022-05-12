@@ -413,7 +413,7 @@ class VAE_model(nn.Module):
                     for j in tqdm.tqdm(range(num_samples),
                                        'Looping through number of samples for batch #: ' + str(i + 1), mininterval=1):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
-                        prediction_matrix[i * batch_size:i * batch_size + len(x), j] = seq_predictions
+                        prediction_matrix[i*batch_size:i*batch_size + len(x), j] = seq_predictions
                     tqdm.tqdm.write('\n')
                 mean_predictions = prediction_matrix.mean(dim=1, keepdim=False)
                 std_predictions = prediction_matrix.std(dim=1, keepdim=False)
