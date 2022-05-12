@@ -52,7 +52,7 @@ source "$CONDA_BIN"/activate protein_env
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
 export MSA_data_folder='/n/groups/marks/users/lood/DeepSequence_runs/data/msa_tkmer_20220227/'
-export MSA_list='./data/mappings/DMS_mapping_custom_SPG1.csv'
+export MSA_list='/n/groups/marks/users/lood/DeepSequence_runs/data/mappings/DMS_mapping_custom_SPG1.csv'
 export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_v5_20220227/'
 export model_name_suffix='2022_04_26_DeepSeq_reproduce'
