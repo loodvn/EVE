@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=6
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
 #SBATCH -t 1-23:59                         # Runtime in D-HH:MM format
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint=gpu_sku:A100  #|gpu_sku:RTX-A6000
 ##SBATCH --constraint='gpu_mem:40GB|gpu_mem:48GB'
-#SBATCH --mem=80G                          # Memory total in MB (for all cores)
+#SBATCH --mem=160G                          # Memory total in MB (for all cores)
 
 # ARC
 #SBATCH --partition=short
@@ -16,7 +16,7 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_dms_v6_online_loop"
+#SBATCH --job-name="eve_deepseq_dms_v6_online_loop_big"
 
 # Job array-specific
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
@@ -68,10 +68,10 @@ export protein_index=${SLURM_ARRAY_TASK_ID}
 export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
 export mutations_location='/data/coml-ecr/grte2996/EVE/DMS/DMS_Benchmarking_Dataset_v5_20220227_old'
-export output_evol_indices_location='./results/evol_indices_20220501_v5_memory/online_loop'  # Experimental output location
+export output_evol_indices_location='./results/evol_indices_20220501_v5_memory/online_big'  # Experimental output location
 export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
 export num_samples_compute_evol_indices=20000
-export batch_size=8196  # Pushing batch size to limit of GPU memory
+export batch_size=65568  # Pushing batch size to limit of GPU memory
 
 python compute_evol_indices_DMS.py \
     --MSA_data_folder ${MSA_data_folder} \
