@@ -119,7 +119,7 @@ if __name__=='__main__':
         print(e)
         sys.exit(0)
 
-    print(f"Current time: {datetime.datetime.now()}, peak memory usage: {getrusage(RUSAGE_SELF).ru_maxrss}")
+    print(f"Current time: {datetime.datetime.now()}, Peak memory in GB: {getrusage(RUSAGE_SELF).ru_maxrss / 1024**2:.3f}")
 
     # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
     list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(
