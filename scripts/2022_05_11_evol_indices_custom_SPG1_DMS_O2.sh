@@ -64,7 +64,7 @@ export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
 export mutations_location='/n/groups/marks/users/lood/DeepSequence_runs/data/DMS_Benchmarking_Dataset_v5_20220227_20220505_v7/'
 export output_evol_indices_location='./results/evol_indices_20220501_v5_memory'  # For testing memory issues
-export output_evol_indices_filename_suffix='_2022_04_26_DeepSeq_reproduce_v6'
+export output_evol_indices_filename_suffix='_2022_05_11_custom_SPG1'
 export num_samples_compute_evol_indices=20000
 export batch_size=1024  # Pushing batch size to limit of GPU memory
 
