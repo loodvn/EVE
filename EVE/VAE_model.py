@@ -388,17 +388,17 @@ class VAE_model(nn.Module):
                 list_valid_mutated_sequences[mutation] = ''.join(mutated_sequence)
 
         # One-hot encoding of mutated sequences
-        # Can also be cheeky and make the dtype float8, which is then cast later to self.dtype=np.float32
-        mutated_sequences_one_hot = torch.zeros((len(list_valid_mutations),len(msa_data.focus_cols),len(msa_data.alphabet)), dtype=self.dtype)
+        # Cheeky and store one-hot encodings as bools to be cast up later
+        mutated_sequences_one_hot = np.zeros((len(list_valid_mutations),len(msa_data.focus_cols),len(msa_data.alphabet)), dtype='bool')
         for i,mutation in enumerate(tqdm.tqdm(list_valid_mutations, desc="One-hot encoding of mutated sequences")):
             sequence = list_valid_mutated_sequences[mutation]
             for j,letter in enumerate(sequence):
                 if letter in msa_data.aa_dict:
                     k = msa_data.aa_dict[letter]
-                    mutated_sequences_one_hot[i,j,k] = 1.0
+                    mutated_sequences_one_hot[i,j,k] = True # 1.0
 
         # TODO for low memory might need to calculate one-hot on the fly, or fix chunked calculation with elbo - elbo_wt
-        # mutated_sequences_one_hot = torch.tensor(mutated_sequences_one_hot)
+        mutated_sequences_one_hot = torch.tensor(mutated_sequences_one_hot, dtype=torch.bool)
         print("One-hot encoding of mutated sequences complete")
         print(f"{datetime.datetime.now()} Peak memory in GB: {getrusage(RUSAGE_SELF).ru_maxrss / 1024 ** 2:.3f}")
         # https://stackoverflow.com/questions/54361763/pytorch-why-is-the-memory-occupied-by-the-tensor-variable-so-small/54365012#54365012
