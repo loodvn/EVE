@@ -163,8 +163,24 @@ class VAE_model(nn.Module):
         x = x.view(-1,self.alphabet_size*self.seq_len)
         
         BCE_batch_tensor = torch.sum(F.binary_cross_entropy_with_logits(recon_x_log, x, reduction='none'),dim=1)
-        KLD_batch_tensor = (-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(),dim=1))
+        KLD_batch_tensor = (-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1))
         
+        ELBO_batch_tensor = -(BCE_batch_tensor + KLD_batch_tensor)
+
+        return ELBO_batch_tensor, BCE_batch_tensor, KLD_batch_tensor
+
+    def all_likelihood_components_z(self, x, mu, log_var):
+        """Skip the encoder part and directly sample z"""
+        # Need to run mu, log_var = self.encoder(x) first
+        z = self.sample_latent(mu, log_var)
+        recon_x_log = self.decoder(z)
+
+        recon_x_log = recon_x_log.view(-1, self.alphabet_size * self.seq_len)
+        x = x.view(-1, self.alphabet_size * self.seq_len)
+
+        BCE_batch_tensor = torch.sum(F.binary_cross_entropy_with_logits(recon_x_log, x, reduction='none'), dim=1)
+        KLD_batch_tensor = (-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1))
+
         ELBO_batch_tensor = -(BCE_batch_tensor + KLD_batch_tensor)
 
         return ELBO_batch_tensor, BCE_batch_tensor, KLD_batch_tensor
@@ -441,9 +457,11 @@ class VAE_model(nn.Module):
                     online_mean = torch.zeros(len(x), dtype=self.dtype, device=self.device)
                     online_s = torch.zeros(len(x), dtype=self.dtype, device=self.device)
 
-                    for j in tqdm.tqdm(range(num_samples),
-                                       'Looping through number of samples for batch #: ' + str(i + 1)):
-                        seq_predictions, _, _ = self.all_likelihood_components(x)
+                    # Run this once per batch to speed up remaining loop
+                    mu, log_var = self.encoder(x)
+
+                    for j in tqdm.tqdm(range(num_samples), 'Looping through number of samples for batch #: ' + str(i + 1)):
+                        seq_predictions, _, _ = self.all_likelihood_components_z(x, mu, log_var)
                         # Using Welford's method https://stackoverflow.com/a/15638726/10447904
                         # All still on GPU
                         if j == 0:
