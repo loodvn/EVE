@@ -22,7 +22,7 @@
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=./logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 ##SBATCH --array=0-86  # 87 DMSs, 72 MSAs # Array end is inclusive
-#SBATCH --array=57,69  # Testing small DMSs
+#SBATCH --array=69  # Testing small DMSs
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -33,8 +33,7 @@
 ################################################################################
 
 set -e # fail fully on first line failure (from Joost slurm_for_ml)
-
-# Note: Remember to clear ~/.theano cache before running this script
+export PYTHONUNBUFFERED=1
 
 echo "hostname: $(hostname)"
 echo "Running from: $(pwd)"
