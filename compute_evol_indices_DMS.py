@@ -73,7 +73,7 @@ if __name__=='__main__':
     else:
         assert os.path.isdir(os.path.dirname(evol_indices_output_filename)), \
             'Output directory does not exist: {}. Please create directory before running script.\nOutput filename given: {}.\nDebugging curdir={}'\
-            .format(os.path.dirname(evol_indices_output_filename), evol_indices_output_filename, os.path.curdir)
+            .format(os.path.dirname(evol_indices_output_filename), evol_indices_output_filename, os.getcwd())
 
 
     data = data_utils.MSA_processing(

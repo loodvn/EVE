@@ -16,7 +16,7 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_deepseq_dms_v6_spg1"
+#SBATCH --job-name="eve_dms" #"eve_deepseq_dms_v6_spg1"
 
 # Job array-specific
 #SBATCH --output=./logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
@@ -58,7 +58,7 @@ export MSA_data_folder='/data/coml-ecr/grte2996/EVE/msa_tkmer_20220227/' # Copie
 export MSA_list='./data/mappings/DMS_mapping_custom_SPG1.csv'  # Generated on O2
 export MSA_weights_location='./data/weights_msa_tkmer_20220227_v6'
 export VAE_checkpoint_location='/data/coml-ecr/grte2996/EVE/results/VAE_parameters_Jan10_pascal'
-export model_name_suffix='Jan10' #'2022_04_26_DeepSeq_reproduce'  # Copied from O2
+export model_name_suffix='Jan10_seed_1000' #'2022_04_26_DeepSeq_reproduce'  # Copied from O2
 export model_parameters_location='./EVE/default_model_params.json'  # deepseq_model_params.json
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}
