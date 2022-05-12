@@ -6,7 +6,6 @@ from resource import getrusage, RUSAGE_SELF
 
 import pandas as pd
 import torch
-# from torch.profiler import profile, ProfilerActivity
 
 from EVE import VAE_model
 from utils import data_utils
@@ -121,7 +120,6 @@ if __name__=='__main__':
 
     print(f"Current time: {datetime.datetime.now()}, Peak memory in GB: {getrusage(RUSAGE_SELF).ru_maxrss / 1024**2:.3f}")
 
-    # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
     list_valid_mutations, evol_indices, _, _ = model.compute_evol_indices(
         msa_data=data,
         list_mutations_location=args.mutations_location,
@@ -130,9 +128,6 @@ if __name__=='__main__':
         batch_size=args.batch_size,
         aggregation_method=args.aggregation_method
     )
-
-    # print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=10))
-    # print(prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=10))
 
     df = {}
     df['protein_name'] = protein_name
