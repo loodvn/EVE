@@ -332,8 +332,7 @@ class VAE_model(nn.Module):
         The column in the list_mutations dataframe that contains the mutant(s) for a given variant should be called "mutations"
         """
 
-        # Note: For chunked calculations: would need to pass in wt ELBO (for the mean - mean[0] line),
-        #  or calculate the ELBO in compute_evol_indices
+        # Note: wt is added inside this function, so no need to add a row in csv/dataframe input with wt
 
         #Multiple mutations are to be passed colon-separated
         list_mutations=list_mutations_location #pd.read_csv(list_mutations_location, header=0)
