@@ -18,9 +18,8 @@ if __name__=='__main__':
     parser.add_argument('--model_parameters_location', type=str, help='Location of VAE model parameters')
     parser.add_argument('--training_logs_location', type=str, help='Location of VAE model parameters')
     parser.add_argument('--z_dim', type=int, help='Specify a different latent dim than in the params file')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed')
     args = parser.parse_args()
-
-    print("tmp: args=", args)
 
     mapping_file = pd.read_csv(args.MSA_list)
     protein_name = mapping_file['protein_name'][args.protein_index]
@@ -60,14 +59,12 @@ if __name__=='__main__':
                     data=data,
                     encoder_parameters=model_params["encoder_parameters"],
                     decoder_parameters=model_params["decoder_parameters"],
-                    random_seed=42
+                    random_seed=args.seed
     )
     model = model.to(model.device)
 
     model_params["training_parameters"]['training_logs_location'] = args.training_logs_location
     model_params["training_parameters"]['model_checkpoint_location'] = args.VAE_checkpoint_location
-    
-    # model_params["training_parameters"]["num_training_steps"] = 1000 # todo temp debugging
 
     print("Starting to train model: " + model_name)
     model.train_model(data=data, training_parameters=model_params["training_parameters"])
