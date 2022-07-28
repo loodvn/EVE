@@ -13,8 +13,8 @@ if __name__ == '__main__':
     parser.add_argument('--MSA_data_folder', type=str, help='Folder where MSAs are stored')
     parser.add_argument('--MSA_list', type=str, help='List of proteins and corresponding MSA file name')
     parser.add_argument('--protein_index', type=int, help='Row index of protein in input mapping file')
-    parser.add_argument('--MSA_weights_location', type=str, help='Location where weights for each sequence in the MSA will be stored')
-    parser.add_argument('--theta_reweighting', type=float, help='Parameters for MSA sequence re-weighting')
+    # parser.add_argument('--MSA_weights_location', type=str, help='Location where weights for each sequence in the MSA will be stored')
+    # parser.add_argument('--theta_reweighting', type=float, help='Parameters for MSA sequence re-weighting')
     parser.add_argument('--VAE_checkpoint_location', type=str, help='Location where VAE model checkpoints will be stored')
     parser.add_argument('--model_name_suffix', default='Jan1', type=str, help='model checkpoint name is the protein name followed by this suffix')
     parser.add_argument('--model_parameters_location', type=str, help='Location of VAE model parameters')
@@ -35,21 +35,21 @@ if __name__ == '__main__':
     print("Protein name: "+str(protein_name))
     print("MSA file: "+str(msa_location))
 
-    if args.theta_reweighting is not None:
-        theta = args.theta_reweighting
-    else:
-        try:
-            theta = float(mapping_file['theta'][args.protein_index])
-        except:
-            print("Theta not found in mapping file. Using default value of 0.2")
-            theta = 0.2
-    print("Theta MSA re-weighting: "+str(theta))
+    # if args.theta_reweighting is not None:
+    #     theta = args.theta_reweighting
+    # else:
+    #     try:
+    #         theta = float(mapping_file['theta'][args.protein_index])
+    #     except:
+    #         print("Theta not found in mapping file. Using default value of 0.2")
+    #         theta = 0.2
+    # print("Theta MSA re-weighting: "+str(theta))
 
     data = data_utils.MSA_processing(
             MSA_location=msa_location,
-            theta=theta,
-            use_weights=True,
-            weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
+            # theta=theta,
+            use_weights=False,
+            # weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
     )
     
     if args.computation_mode == "all_singles":
