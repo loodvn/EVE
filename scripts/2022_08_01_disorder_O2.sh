@@ -15,10 +15,11 @@
 #SBATCH --job-name="eve_disorder"
 
 # Job array-specific
+# Note: Script fails silently if the slurm output directory doesn't exist
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
 #SBATCH --array=0-12  # Array end is inclusive
-##SBATCH --hold  # Holds job so that we can first manually check a few
+#SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
 # Submit job array in held state, then release first job to test
@@ -36,8 +37,6 @@ echo "Running from: $(pwd)"
 echo "GPU available: $(nvidia-smi)"
 echo "Submitted from SLURM_SUBMIT_DIR: ${SLURM_SUBMIT_DIR}"
 
-mkdir -p ./logs/slurm_files   # Script fails silently if the slurm output directory doesn't exist
-
 # O2 conda env
 export CONDA_ENVS_PATH=/home/lov701/miniconda3/envs/
 export CONDA_PKGS_DIRS=/home/lov701/miniconda3/pkgs/
@@ -53,7 +52,7 @@ source "$CONDA_BIN"/activate protein_env
 
 export MSA_data_folder='/n/groups/marks/users/lood/DeepSequence_runs/data/msa_tkmer_20220227/'
 export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/MSA_mapping_disorder.csv'
-export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
+export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'  # Note that if incorrect weights exist, the script will try to load them and fail
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'
 export model_name_suffix='2022_08_01_Disorder'  # Essential for skip_existing to work # Copied from O2
 export model_parameters_location='./EVE/default_model_params.json'
@@ -69,5 +68,5 @@ python train_VAE.py \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
     --training_logs_location ${training_logs_location} \
-    --threshold_focus_cols_frac_gaps 0.0 \
+    --threshold_focus_cols_frac_gaps 1 \
     --overwrite_weights

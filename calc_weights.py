@@ -58,7 +58,7 @@ def main(args):
     data_kwargs = {}
     if args.threshold_focus_cols_frac_gaps is not None:
         print("Using custom threshold_focus_cols_frac_gaps: ", args.threshold_focus_cols_frac_gaps)
-        data_kwargs['args.threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
+        data_kwargs['threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
 
     if not os.path.isdir(args.MSA_weights_location):
         # exist_ok=True: Otherwise we'll get some race conditions between concurrent jobs

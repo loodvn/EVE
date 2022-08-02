@@ -50,7 +50,7 @@ if __name__ == '__main__':
     data_kwargs = {}
     if args.threshold_focus_cols_frac_gaps is not None:
         print("Using custom threshold_focus_cols_frac_gaps: ", args.threshold_focus_cols_frac_gaps)
-        data_kwargs['args.threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
+        data_kwargs['threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
 
     if args.overwrite_weights:
         print("Overwriting weights file")

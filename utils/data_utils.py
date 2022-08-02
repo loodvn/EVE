@@ -181,6 +181,7 @@ class MSA_processing:
         print("Neff =", str(self.Neff))
         print("Data Shape =", self.one_hot_encoding.shape)
 
+    # Refactored into its own function so that we can call it separately
     def calc_weights(self, num_cpus=1, method="evcouplings"):
         """
         If num_cpus == 1, weights are computed in serial.
@@ -188,7 +189,6 @@ class MSA_processing:
         Note: This will use multiprocessing.cpu_count() to get the number of available cores, which on clusters may
         return all cores, not just the number of cores available to the user.
         """
-        # Refactored into its own function so that we can call it separately
         if self.use_weights:
             if os.path.isfile(self.weights_location) and not self.overwrite_weights:
                 print("Loading sequence weights from disk")

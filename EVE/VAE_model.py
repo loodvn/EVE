@@ -220,6 +220,8 @@ class VAE_model(nn.Module):
         batch_order = np.arange(x_train.shape[0])
         seq_sample_probs = weights_train / np.sum(weights_train)
 
+        assert batch_order.shape == seq_sample_probs.shape, f"batch_order and seq_sample_probs must have the same shape. batch_order.shape={batch_order.shape}, seq_sample_probs.shape={seq_sample_probs.shape}"
+
         self.Neff_training = np.sum(weights_train)
         N_training = x_train.shape[0]
 
