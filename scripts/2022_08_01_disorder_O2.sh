@@ -68,4 +68,5 @@ python train_VAE.py \
     --VAE_checkpoint_location ${VAE_checkpoint_location} \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
-    --training_logs_location ${training_logs_location}
+    --training_logs_location ${training_logs_location} \
+    --threshold_focus_cols_frac_gaps 0.0
