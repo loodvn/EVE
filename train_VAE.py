@@ -22,6 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--force_load_weights', action='store_true',
         help="Force loading of weights from MSA_weights_location (useful if you want to make sure you're using precalculated weights). Will fail if weight file doesn't exist.",
         default=False)
+    parser.add_argument("--overwrite_weights", help="Will overwrite weights file if it already exists", action="store_true", default=False)
     parser.add_argument("--seed", type=int, help="Random seed", default=42)
     parser.add_argument("--threshold_focus_cols_frac_gaps", type=float, help="Maximum fraction of gaps allowed in focus columns - see data_utils.MSA_processing")
 
@@ -50,6 +51,10 @@ if __name__ == '__main__':
     if args.threshold_focus_cols_frac_gaps is not None:
         print("Using custom threshold_focus_cols_frac_gaps: ", args.threshold_focus_cols_frac_gaps)
         data_kwargs['args.threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
+
+    if args.overwrite_weights:
+        print("Overwriting weights file")
+        data_kwargs['overwrite_weights'] = True
 
     print("Theta MSA re-weighting: " + str(theta))
 

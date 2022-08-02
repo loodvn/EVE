@@ -69,4 +69,4 @@ python train_VAE.py \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
     --training_logs_location ${training_logs_location} \
-    --skip_existing
+    --overwrite_weights

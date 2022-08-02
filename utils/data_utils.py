@@ -23,6 +23,7 @@ class MSA_processing:
                  threshold_focus_cols_frac_gaps=0.3,
                  remove_sequences_with_indeterminate_AA_in_focus_cols=True,
                  num_cpus=1,
+                 overwrite_weights=False,
                  ):
 
         """
@@ -45,6 +46,8 @@ class MSA_processing:
             - default is set to 0.3 (i.e., focus positions are the ones with 30% of gaps or less, i.e., 70% or more residue occupancy)
         - remove_sequences_with_indeterminate_AA_in_focus_cols: (bool) Remove all sequences that have indeterminate AA (e.g., B, J, X, Z) at focus positions of the wild type
         - num_cpus: (int) Number of CPUs to use for parallel weights calculation processing. If set to -1, all available CPUs are used. If set to 1, weights are computed in serial.
+        - overwrite_weights: (bool) If True, calculate weights and overwrite weights file. If False, load weights from weights_location if it exists.
+        TODO these weights options should be more like calc_weights=[True/False], and the weights_location should be a list of locations to load from/save to.
         """
         np.random.seed(2021)
         self.MSA_location = MSA_location
@@ -52,6 +55,7 @@ class MSA_processing:
         self.theta = theta
         self.alphabet = ALPHABET_PROTEIN_NOGAP
         self.use_weights = use_weights
+        self.overwrite_weights = overwrite_weights
         self.preprocess_MSA = preprocess_MSA
         self.threshold_sequence_frac_gaps = threshold_sequence_frac_gaps
         self.threshold_focus_cols_frac_gaps = threshold_focus_cols_frac_gaps
@@ -186,7 +190,7 @@ class MSA_processing:
         """
         # Refactored into its own function so that we can call it separately
         if self.use_weights:
-            if os.path.isfile(self.weights_location):
+            if os.path.isfile(self.weights_location) and not self.overwrite_weights:
                 print("Loading sequence weights from disk")
                 self.weights = np.load(file=self.weights_location)
             else:
