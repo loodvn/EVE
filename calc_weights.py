@@ -24,6 +24,8 @@ def create_argparser():
     parser.add_argument("--skip_existing", help="Will quit gracefully if weights file already exists", action="store_true", default=False)
     parser.add_argument("--calc_method", choices=["evcouplings", "eve", "both"], help="Method to use for calculating weights", default="evcouplings")
     parser.add_argument("--calc_speedup", help="Print debug information", action="store_true", default=False)
+    parser.add_argument("--threshold_focus_cols_frac_gaps", type=float,
+                        help="Maximum fraction of gaps allowed in focus columns - see data_utils.MSA_processing")
     return parser
 
 
@@ -52,6 +54,12 @@ def main(args):
 
     print("Theta MSA re-weighting: " + str(theta))
 
+    # Using data_kwargs so that if options aren't set, they'll be set to default values
+    data_kwargs = {}
+    if args.threshold_focus_cols_frac_gaps is not None:
+        print("Using custom threshold_focus_cols_frac_gaps: ", args.threshold_focus_cols_frac_gaps)
+        data_kwargs['args.threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
+
     if not os.path.isdir(args.MSA_weights_location):
         # exist_ok=True: Otherwise we'll get some race conditions between concurrent jobs
         os.makedirs(args.MSA_weights_location, exist_ok=True)
@@ -77,6 +85,7 @@ def main(args):
         use_weights=False, #True,
         weights_location=weights_file,
         num_cpus=args.num_cpus,
+        **data_kwargs,
     )
 
     msa_data.use_weights = True  # Manually set this so that we can check smaller runtimes first

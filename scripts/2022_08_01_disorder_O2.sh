@@ -17,7 +17,7 @@
 # Job array-specific
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-#SBATCH --array=0-5  # Array end is inclusive
+#SBATCH --array=0-12  # Array end is inclusive
 ##SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -52,11 +52,11 @@ source "$CONDA_BIN"/activate protein_env
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
 export MSA_data_folder='/n/groups/marks/users/lood/DeepSequence_runs/data/msa_tkmer_20220227/'
-export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/DMS_mapping_disorder.csv'
+export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/MSA_mapping_disorder.csv'
 export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'
 export model_name_suffix='2022_08_01_Disorder'  # Essential for skip_existing to work # Copied from O2
-export model_parameters_location='./EVE/deepseq_model_params.json'
+export model_parameters_location='./EVE/default_model_params.json'
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}
 
@@ -69,4 +69,5 @@ python train_VAE.py \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
     --training_logs_location ${training_logs_location} \
+    --threshold_focus_cols_frac_gaps 0.0 \
     --overwrite_weights
