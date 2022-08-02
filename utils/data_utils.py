@@ -9,13 +9,7 @@ import torch
 
 # constants
 from utils.weights import map_from_alphabet, map_matrix, compute_sequence_weights, calc_weights_evcouplings
-
-GAP = "-"
-MATCH_GAP = GAP
-INSERT_GAP = "."
-
-ALPHABET_PROTEIN_NOGAP = "ACDEFGHIKLMNPQRSTVWY"
-ALPHABET_PROTEIN_GAP = GAP + ALPHABET_PROTEIN_NOGAP
+from utils.constants import GAP, ALPHABET_PROTEIN_NOGAP, ALPHABET_PROTEIN_GAP
 
 
 class MSA_processing:

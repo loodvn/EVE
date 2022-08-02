@@ -23,6 +23,7 @@ if __name__ == '__main__':
         help="Force loading of weights from MSA_weights_location (useful if you want to make sure you're using precalculated weights). Will fail if weight file doesn't exist.",
         default=False)
     parser.add_argument("--seed", type=int, help="Random seed", default=42)
+    parser.add_argument("--threshold_focus_cols_frac_gaps", type=float, help="Maximum fraction of gaps allowed in focus columns - see data_utils.MSA_processing")
 
     args = parser.parse_args()
 
@@ -43,6 +44,13 @@ if __name__ == '__main__':
         except:
             print("Couldn't load theta from mapping file. Using default value of 0.2")
             theta = 0.2
+
+    # Using data_kwargs so that if options aren't set, they'll be set to default values
+    data_kwargs = {}
+    if args.threshold_focus_cols_frac_gaps is not None:
+        print("Using custom threshold_focus_cols_frac_gaps: ", args.threshold_focus_cols_frac_gaps)
+        data_kwargs['args.threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
+
     print("Theta MSA re-weighting: " + str(theta))
 
     weights_file = args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
@@ -57,6 +65,7 @@ if __name__ == '__main__':
         theta=theta,
         use_weights=True,
         weights_location=weights_file,
+        **data_kwargs,
     )
 
     model_name = protein_name + "_" + args.model_name_suffix

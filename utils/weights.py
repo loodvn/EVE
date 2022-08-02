@@ -8,7 +8,7 @@ import numpy as np
 from numba import prange
 from tqdm import tqdm
 
-from utils.data_utils import GAP
+from utils.constants import GAP
 
 
 def compute_weight_eve(seq, list_seq, theta):
@@ -246,7 +246,6 @@ def _global_calc_cluster_factory():
     return func
 
 
-# Copied from EVCouplings
 def map_from_alphabet(alphabet, default=GAP):
     """
     Creates a mapping dictionary from a given alphabet.
