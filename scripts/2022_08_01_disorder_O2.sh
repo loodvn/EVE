@@ -2,7 +2,7 @@
 #SBATCH --cpus-per-task 4
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
-#SBATCH -t 0-1 # one-hour test job 0-23:59                         # Runtime in D-HH:MM format
+#SBATCH -t 1-23:59                             # Runtime in D-HH:MM format
 #SBATCH -p gpu_quad,gpu,gpu_marks,gpu_requeue
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint=gpu_doublep
@@ -18,7 +18,8 @@
 # Note: Script fails silently if the slurm output directory doesn't exist
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-#SBATCH --array=0-12  # Array end is inclusive
+##SBATCH --array=0-11  # Array end is inclusive
+#SBATCH --array=0,1,3,5,6 # tmp rerun longer time limit
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -52,7 +53,8 @@ source "$CONDA_BIN"/activate protein_env
 
 export MSA_data_folder='/n/groups/marks/users/lood/DeepSequence_runs/data/msa_tkmer_20220227/'
 export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/MSA_mapping_disorder.csv'
-export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'  # Note that if incorrect weights exist, the script will try to load them and fail
+# Note that if incorrect weights exist, the script will try to load them and fail, unless you specify --overwrite_weights
+export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'
 export model_name_suffix='2022_08_01_Disorder'  # Essential for skip_existing to work # Copied from O2
 export model_parameters_location='./EVE/default_model_params.json'
