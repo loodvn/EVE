@@ -30,6 +30,8 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', default=256, type=int, help='Batch size when computing evol indices')
     parser.add_argument("--skip_existing", action="store_true", help="Skip scoring if output file already exists")
     parser.add_argument("--aggregation_method", choices=["full", "batch", "online"], default="full", help="Method to aggregate evol indices")
+    parser.add_argument("--threshold_focus_cols_frac_gaps", type=float,
+                        help="Maximum fraction of gaps allowed in focus columns - see data_utils.MSA_processing")
     args = parser.parse_args()
 
     print("Arguments:", args)
@@ -48,15 +50,7 @@ if __name__=='__main__':
     print("DMS id: "+str(DMS_id))
     assert DMS_filename.startswith(DMS_id), 'DMS id does not match DMS filename: {} vs {}'.format(DMS_id, DMS_filename)
 
-    if args.theta_reweighting is not None:
-        theta = args.theta_reweighting
-    else:
-        try:
-            theta = float(mapping_file['theta'][args.protein_index])
-        except:
-            theta = 0.2
-    print("Theta MSA re-weighting: "+str(theta))
-
+    # Check filepaths are valid
     evol_indices_output_filename = os.path.join(args.output_evol_indices_location, DMS_id + '_' + protein_name + '_' + str(
         args.num_samples_compute_evol_indices) + '_samples' + args.output_evol_indices_filename_suffix + '.csv')
 
@@ -75,12 +69,27 @@ if __name__=='__main__':
             'Output directory does not exist: {}. Please create directory before running script.\nOutput filename given: {}.\nDebugging curdir={}'\
             .format(os.path.dirname(evol_indices_output_filename), evol_indices_output_filename, os.getcwd())
 
+    if args.theta_reweighting is not None:
+        theta = args.theta_reweighting
+    else:
+        try:
+            theta = float(mapping_file['theta'][args.protein_index])
+        except:
+            theta = 0.2
+    print("Theta MSA re-weighting: "+str(theta))
+
+    # Using data_kwargs so that if options aren't set, they'll be set to default values
+    data_kwargs = {}
+    if args.threshold_focus_cols_frac_gaps is not None:
+        print("Using custom threshold_focus_cols_frac_gaps: ", args.threshold_focus_cols_frac_gaps)
+        data_kwargs['threshold_focus_cols_frac_gaps'] = args.threshold_focus_cols_frac_gaps
 
     data = data_utils.MSA_processing(
             MSA_location=msa_location,
             theta=theta,
             use_weights=False,  # Don't need weights for evol indices
-            weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
+            weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy',
+            **data_kwargs,
     )
 
     print("MSA data object loaded.")
@@ -115,8 +124,7 @@ if __name__=='__main__':
         print("Initialized VAE with checkpoint '{}' ".format(checkpoint_name))
     except Exception as e:
         print("Unable to load VAE model checkpoint {}".format(checkpoint_name))
-        print(e)
-        sys.exit(0)
+        raise e
 
     print(f"Current time: {datetime.datetime.now()}, Peak memory in GB: {getrusage(RUSAGE_SELF).ru_maxrss / 1024**2:.3f}")
 
@@ -126,7 +134,7 @@ if __name__=='__main__':
         mutant_column=DMS_mutant_column,
         num_samples=args.num_samples_compute_evol_indices,
         batch_size=args.batch_size,
-        aggregation_method=args.aggregation_method
+        aggregation_method=args.aggregation_method,
     )
 
     df = {}
