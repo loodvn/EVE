@@ -48,7 +48,8 @@ if __name__=='__main__':
     print("Protein name: "+str(protein_name))
     print("MSA file: "+str(msa_location))
     print("DMS id: "+str(DMS_id))
-    assert DMS_filename.startswith(DMS_id), 'DMS id does not match DMS filename: {} vs {}'.format(DMS_id, DMS_filename)
+    if not DMS_filename.startswith(DMS_id):
+        print(f"Warning: DMS id does not match DMS filename: {DMS_id} vs {DMS_filename}. Continuing for now.")
 
     # Check filepaths are valid
     evol_indices_output_filename = os.path.join(args.output_evol_indices_location, DMS_id + '_' + protein_name + '_' + str(
