@@ -8,7 +8,7 @@
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint=gpu_doublep
 #SBATCH --qos=gpuquad_qos
-#SBATCH --mem=40G                          # Memory total in MB (for all cores)
+#SBATCH --mem=20G                          # Memory total in MB (for all cores)
 
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
@@ -51,11 +51,12 @@ source "$CONDA_BIN"/activate protein_env
 # Monitor GPU usage (store outputs in ./logs/gpu_logs/)
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
-export MSA_data_folder='/n/groups/marks/users/lood/DeepSequence_runs/data/msa_tkmer_20220227/'
+# Note: Need to therefore retrain
+export MSA_data_folder='/n/groups/marks/projects/marks_lab_and_oatml/protein_transformer/MSA/final_MSA_20220612/MSA_ProteinGym'  # Javier new MSA folder
 #export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/MSA_mapping_disorder.csv'
 export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/DMS_mapping_disorder.csv'  # Using DMS mapping here
 # Note that if incorrect weights exist, the script will try to load them and fail, unless you specify --overwrite_weights
-export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
+# export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'
 export model_name_suffix='2022_08_01_Disorder'  # Essential for skip_existing to work # Copied from O2
 export model_parameters_location='./EVE/default_model_params.json'
@@ -65,7 +66,7 @@ export protein_index=${SLURM_ARRAY_TASK_ID}
 # DMS-specific args
 export computation_mode='DMS'
 #export all_singles_mutations_folder='./data/mutations'
-export mutations_location='/n/groups/marks/users/lood/DeepSequence_runs/data/DMS_Benchmarking_Dataset_v5_20220227_20220505_v7/'
+export mutations_location='/n/groups/marks/projects/marks_lab_and_oatml/protein_transformer/DMS/DMS_Benchmarking_Dataset_v5_20220227'  # Javier new DMS folder
 export output_evol_indices_location='./results/evol_indices_2022_08_08_disorder_ProteinGym/'  # Custom output location
 export output_evol_indices_filename_suffix=$model_name_suffix
 export num_samples_compute_evol_indices=20000
@@ -76,7 +77,6 @@ python compute_evol_indices_DMS.py \
     --MSA_data_folder ${MSA_data_folder} \
     --MSA_list ${MSA_list} \
     --protein_index ${protein_index} \
-    --MSA_weights_location ${MSA_weights_location} \
     --VAE_checkpoint_location ${VAE_checkpoint_location} \
     --model_name_suffix ${model_name_suffix} \
     --model_parameters_location ${model_parameters_location} \
@@ -88,3 +88,4 @@ python compute_evol_indices_DMS.py \
     --skip_existing \
     --aggregation_method "full" \
     --threshold_focus_cols_frac_gaps 1
+    #--MSA_weights_location ${MSA_weights_location} \
