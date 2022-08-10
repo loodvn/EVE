@@ -89,7 +89,6 @@ if __name__=='__main__':
             MSA_location=msa_location,
             theta=theta,
             use_weights=False,  # Don't need weights for evol indices
-            weights_location=args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy',
             **data_kwargs,
     )
 

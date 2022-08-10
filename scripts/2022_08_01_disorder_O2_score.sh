@@ -19,7 +19,8 @@
 # Note: Script fails silently if the slurm output directory doesn't exist
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-#SBATCH --array=0-16  # Array end is inclusive
+#SBATCH --array=0-15  # Array end is inclusive
+#SBATCH --array=10,13 # Q559 and SYUA
 #SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
@@ -54,7 +55,7 @@ source "$CONDA_BIN"/activate protein_env
 # Note: Need to therefore retrain
 export MSA_data_folder='/n/groups/marks/projects/marks_lab_and_oatml/protein_transformer/MSA/final_MSA_20220612/MSA_ProteinGym'  # Javier new MSA folder
 #export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/MSA_mapping_disorder.csv'
-export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/DMS_mapping_disorder.csv'  # Using DMS mapping here
+export MSA_list='/n/groups/marks/projects/disorder_human/data/2022_08_10_disorder_dms_mapping.csv'  # Using DMS mapping here
 # Note that if incorrect weights exist, the script will try to load them and fail, unless you specify --overwrite_weights
 # export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'
@@ -85,7 +86,7 @@ python compute_evol_indices_DMS.py \
     --output_evol_indices_location ${output_evol_indices_location} \
     --num_samples_compute_evol_indices ${num_samples_compute_evol_indices} \
     --batch_size ${batch_size} \
-    --skip_existing \
     --aggregation_method "full" \
     --threshold_focus_cols_frac_gaps 1
+    #--skip_existing \
     #--MSA_weights_location ${MSA_weights_location} \

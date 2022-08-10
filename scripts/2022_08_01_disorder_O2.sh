@@ -2,8 +2,8 @@
 #SBATCH --cpus-per-task 4
 #SBATCH -N 1                               # Request one node (if you request more than one core with -c, also using
                                            # -N 1 means all cores will be on the same node)
-#SBATCH -t 1-23:59                             # Runtime in D-HH:MM format
-#SBATCH -p gpu_quad,gpu,gpu_marks,gpu_requeue
+#SBATCH -t 1-23:59:00                     # Runtime in D-HH:MM format
+#SBATCH -p gpu_quad#,gpu,gpu_marks #,gpu_requeue # Note: gpu_requeue has a time limit of 1 day (sinfo --Node -p gpu_requeue --Format CPUsState,Gres,GresUsed:.40,Features:.80,StateLong,Time)
 #SBATCH --gres=gpu:1
 ##SBATCH --constraint=gpu_doublep
 #SBATCH --qos=gpuquad_qos
@@ -12,15 +12,15 @@
 #SBATCH --mail-type=TIME_LIMIT_80,TIME_LIMIT,FAIL,ARRAY_TASKS
 #SBATCH --mail-user="lodevicus_vanniekerk@hms.harvard.edu"
 
-#SBATCH --job-name="eve_disorder"
+#SBATCH --job-name="eve_disorder_rerun"
 
 # Job array-specific
 # Note: Script fails silently if the slurm output directory doesn't exist
 #SBATCH --output=logs/slurm_files/slurm-lvn-%A_%3a-%x.out   # Nice tip: using %3a to pad to 3 characters (23 -> 023)
 ##SBATCH --error=logs/slurm_files/slurm-lvn-%A_%3a-%x.err   # Optional: Redirect STDERR to its own file
-##SBATCH --array=0-11  # Array end is inclusive
-#SBATCH --array=0,1,3,5,6 # tmp rerun longer time limit
-#SBATCH --hold  # Holds job so that we can first manually check a few
+##SBATCH --array=0-12  # Array end is inclusive
+#SBATCH --array=7,10 # Q559 and SYUA
+##SBATCH --hold  # Holds job so that we can first manually check a few
 
 # Quite neat workflow:
 # Submit job array in held state, then release first job to test
@@ -52,11 +52,11 @@ source "$CONDA_BIN"/activate protein_env
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
 export MSA_data_folder='/n/groups/marks/projects/marks_lab_and_oatml/protein_transformer/MSA/final_MSA_20220612/MSA_ProteinGym'  # Javier new MSA folder
-export MSA_list='/n/groups/marks/users/lood/EVE/data/mappings/MSA_mapping_disorder.csv'
+export MSA_list='/n/groups/marks/projects/disorder_human/data/2022_08_10_disorder_msa_mapping.csv'
 # Note that if incorrect weights exist, the script will try to load them and fail, unless you specify --overwrite_weights
 export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'
-export model_name_suffix='2022_08_01_Disorder'  # Essential for skip_existing to work # Copied from O2
+export model_name_suffix='2022_08_10_Disorder'  # Essential for skip_existing to work # Copied from O2
 export model_parameters_location='./EVE/default_model_params.json'
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}
