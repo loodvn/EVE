@@ -52,7 +52,7 @@ source "$CONDA_BIN"/activate protein_env
 ~/job_gpu_monitor.sh --interval 1m ./logs/gpu_logs &
 
 export MSA_data_folder='/n/groups/marks/projects/marks_lab_and_oatml/protein_transformer/MSA/final_MSA_20220612/MSA_ProteinGym'  # Javier new MSA folder
-export MSA_list='/n/groups/marks/projects/disorder_human/data/2022_08_10_disorder_msa_mapping.csv'
+export MSA_list='/n/groups/marks/projects/disorder_human/data/2022_08_10_disorder_msa_mapping.csv'  # New DMS mapping file from disorder project
 # Note that if incorrect weights exist, the script will try to load them and fail, unless you specify --overwrite_weights
 export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'

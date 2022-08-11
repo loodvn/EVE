@@ -59,7 +59,7 @@ export MSA_list='/n/groups/marks/projects/disorder_human/data/2022_08_10_disorde
 # Note that if incorrect weights exist, the script will try to load them and fail, unless you specify --overwrite_weights
 # export MSA_weights_location='/n/groups/marks/users/lood/EVE/data/weights_disorder_msa_tkmer_20220227/'
 export VAE_checkpoint_location='/n/groups/marks/users/lood/EVE/results/VAE_parameters_disorder/'
-export model_name_suffix='2022_08_01_Disorder'  # Essential for skip_existing to work # Copied from O2
+export model_name_suffix='2022_08_10_Disorder'  # Essential for skip_existing to work # Copied from O2
 export model_parameters_location='./EVE/default_model_params.json'
 export training_logs_location='./logs/'
 export protein_index=${SLURM_ARRAY_TASK_ID}
