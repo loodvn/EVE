@@ -1,0 +1,3 @@
+DMS_id,UniProt_ID,DMS_filename,MSA_filename,DMS_mutant_column
+GCN4_YEAST_ADpred,GCN4_YEAST,2022_08_23_ADPred_positive,GCN4_YEAST_full_24-02-2022_b03.a2m,substituted_muts
+GCN4_YEAST_ADpred,GCN4_YEAST,2022_08_23_ADPred_negative_first30k,GCN4_YEAST_full_24-02-2022_b03.a2m,substituted_muts
