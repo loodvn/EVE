@@ -24,16 +24,17 @@ class VAE_model(nn.Module):
     """
     Class for the VAE model with estimation of weights distribution parameters via Mean-Field VI.
     """
+
     def __init__(self,
-            model_name,
-            data,
-            encoder_parameters,
-            decoder_parameters,
-            random_seed,
-            seq_len=None,
-            alphabet_size=None,
-            Neff=None,
-            ):
+                 model_name,
+                 data,
+                 encoder_parameters,
+                 decoder_parameters,
+                 random_seed,
+                 seq_len=None,
+                 alphabet_size=None,
+                 Neff=None,
+                 ):
 
         super().__init__()
 
@@ -75,7 +76,7 @@ class VAE_model(nn.Module):
         KL divergence between diagonal gaussian with prior diagonal gaussian.
         """
         KLD = 0.5 * (p_logvar - logvar) + 0.5 * (torch.exp(logvar) + torch.pow(mu - p_mu, 2)) / (
-                    torch.exp(p_logvar) + 1e-20) - 0.5
+                torch.exp(p_logvar) + 1e-20) - 0.5
 
         return torch.sum(KLD)
 
@@ -158,7 +159,7 @@ class VAE_model(nn.Module):
             KLD_decoder_params_normalized = 0.0
         warm_up_scale = self.annealing_factor(annealing_warm_up, training_step)
         neg_ELBO = BCE + warm_up_scale * (
-                    kl_latent_scale * KLD_latent + kl_global_params_scale * KLD_decoder_params_normalized)
+                kl_latent_scale * KLD_latent + kl_global_params_scale * KLD_decoder_params_normalized)
         return neg_ELBO, BCE, KLD_latent, KLD_decoder_params_normalized
 
     def all_likelihood_components(self, x):
@@ -240,7 +241,6 @@ class VAE_model(nn.Module):
         assert batch_order.shape == seq_sample_probs.shape, f"batch_order and seq_sample_probs must have the same shape. batch_order.shape={batch_order.shape}, seq_sample_probs.shape={seq_sample_probs.shape}"
 
         self.Neff_training = np.sum(weights_train)
-        N_training = x_train.shape[0]
 
         start = time.time()
         train_loss = 0
@@ -255,7 +255,13 @@ class VAE_model(nn.Module):
             z = self.sample_latent(mu, log_var)
             recon_x_log = self.decoder(z)
 
-            neg_ELBO, BCE, KLD_latent, KLD_decoder_params_normalized = self.loss_function(recon_x_log, x, mu, log_var, training_parameters['kl_latent_scale'], training_parameters['kl_global_params_scale'], training_parameters['annealing_warm_up'], training_step, self.Neff_training)
+            neg_ELBO, BCE, KLD_latent, KLD_decoder_params_normalized = self.loss_function(
+                recon_x_log, x, mu, log_var,
+                training_parameters['kl_latent_scale'],
+                training_parameters['kl_global_params_scale'],
+                training_parameters['annealing_warm_up'],
+                training_step,
+                self.Neff_training)
 
             neg_ELBO.backward()
             optimizer.step()
@@ -400,9 +406,8 @@ class VAE_model(nn.Module):
                         fully_valid_mutation = False
                     # Given it's in the dict, check if it's a valid mutation
                     elif msa_data.uniprot_focus_col_to_wt_aa_dict[pos] != wt_aa:
-                        print("wt_aa {} != uniprot_focus_col_to_wt_aa_dict[{}] {}".format(wt_aa, pos,
-                                                                                          msa_data.uniprot_focus_col_to_wt_aa_dict[
-                                                                                              pos]))
+                        print("wt_aa {} != uniprot_focus_col_to_wt_aa_dict[{}] {}".format(
+                            wt_aa, pos, msa_data.uniprot_focus_col_to_wt_aa_dict[pos]))
                         fully_valid_mutation = False
                     if mut not in msa_data.mutant_to_letter_pos_idx_focus_list:
                         print("mut {} not in mutant_to_letter_pos_idx_focus_list".format(mut))
@@ -425,8 +430,9 @@ class VAE_model(nn.Module):
                 list_valid_mutations.append(mutation)
                 list_valid_mutated_sequences[mutation] = ''.join(mutated_sequence)
 
-        #One-hot encoding of mutated sequences
-        mutated_sequences_one_hot = one_hot_3D(list_valid_mutations, list_valid_mutated_sequences, alphabet=msa_data.alphabet, seq_length=len(msa_data.focus_cols))
+        # One-hot encoding of mutated sequences
+        mutated_sequences_one_hot = one_hot_3D(list_valid_mutations, list_valid_mutated_sequences,
+                                               alphabet=msa_data.alphabet, seq_length=len(msa_data.focus_cols))
 
         # TODO for low memory might need to calculate one-hot on the fly, or fix chunked calculation with elbo - elbo_wt
         mutated_sequences_one_hot = torch.tensor(mutated_sequences_one_hot, dtype=torch.bool)
