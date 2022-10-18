@@ -23,8 +23,8 @@ def create_argparser():
                         help='Location where weights for each sequence in the MSA will be stored', required=True)
     parser.add_argument('--theta_reweighting', type=float, help='Parameters for MSA sequence re-weighting')
     parser.add_argument("--num_cpus", type=int, help="Number of CPUs to use", default=1)
-    # Note: It would be nicer to have an overwrite flag, but I don't want to change the MSAProcessing code too much
     parser.add_argument("--skip_existing", help="Will quit gracefully if weights file already exists", action="store_true", default=False)
+    parser.add_argument("--overwrite", help="Will overwrite existing weights file", action="store_true", default=False)
     parser.add_argument("--calc_method", choices=["evcouplings", "eve", "both", "identity"], help="Method to use for calculating weights. Note: Both produce the same results as we modified the evcouplings numba code to mirror the eve calculation", default="evcouplings")
     parser.add_argument("--threshold_focus_cols_frac_gaps", type=float,
                         help="Maximum fraction of gaps allowed in focus columns - see data_utils.MSA_processing")
@@ -95,6 +95,7 @@ def main(args):
         weights_location=weights_file,
         num_cpus=args.num_cpus,
         weights_calc_method=args.calc_method,
+        overwrite_weights=args.overwrite,
         **data_kwargs,
     )
 
