@@ -11,6 +11,11 @@ from utils import data_utils
 
 def create_argparser():
     parser = argparse.ArgumentParser(description='VAE')
+
+    # If we don't have a mapping file, just use a single MSA path
+    parser.add_argument("--MSA_filepath", type=str, help="Full path to MSA")
+
+    # If we have a mapping file with one MSA path per line
     parser.add_argument('--MSA_data_folder', type=str, help='Folder where MSAs are stored', required=True)
     parser.add_argument('--MSA_list', type=str, help='List of proteins and corresponding MSA file name', required=True)
     parser.add_argument('--protein_index', type=int, help='Row index of protein in input mapping file', required=True)
@@ -20,18 +25,23 @@ def create_argparser():
     parser.add_argument("--num_cpus", type=int, help="Number of CPUs to use", default=1)
     # Note: It would be nicer to have an overwrite flag, but I don't want to change the MSAProcessing code too much
     parser.add_argument("--skip_existing", help="Will quit gracefully if weights file already exists", action="store_true", default=False)
-    parser.add_argument("--calc_method", choices=["evcouplings", "eve", "both"], help="Method to use for calculating weights. Note: Both produce the same results as we modified the evcouplings numba code to mirror the eve calculation", default="evcouplings")
+    parser.add_argument("--calc_method", choices=["evcouplings", "eve", "both", "identity"], help="Method to use for calculating weights. Note: Both produce the same results as we modified the evcouplings numba code to mirror the eve calculation", default="evcouplings")
     return parser
 
 
 def main(args):
     print("Arguments:", args)
 
-    assert os.path.isfile(args.MSA_list), f"MSA file list {args.MSA_list} doesn't seem to exist"
-    mapping_file = pd.read_csv(args.MSA_list)
-    protein_name = mapping_file['protein_name'][args.protein_index]
-    msa_location = args.MSA_data_folder + os.sep + mapping_file['msa_location'][args.protein_index]
-    print("Protein name: " + str(protein_name))
+    if args.MSA_filepath is not None:
+        assert os.path.isfile(args.MSA_filepath), f"MSA filepath {args.MSA_filepath} doesn't exist"
+        msa_location = args.MSA_filepath
+    else:
+        # Use mapping file
+        assert os.path.isfile(args.MSA_list), f"MSA file list {args.MSA_list} doesn't seem to exist"
+        mapping_file = pd.read_csv(args.MSA_list)
+        protein_name = mapping_file['protein_name'][args.protein_index]
+        msa_location = args.MSA_data_folder + os.sep + mapping_file['msa_location'][args.protein_index]
+        print("Protein name: " + str(protein_name))
     print("MSA file: " + str(msa_location))
 
     if args.theta_reweighting is not None:

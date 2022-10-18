@@ -237,8 +237,10 @@ class MSA_processing:
                     self.weights = compute_sequence_weights(list_seq, self.theta, num_cpus=num_cpus)
                     end = time.perf_counter()
                     print(f"EVE weights took {end - start:.2f} seconds")
+                elif method == "identity":
+                    self.weights = np.ones(self.one_hot_encoding.shape[0])
                 else:
-                    raise ValueError(f"Unknown method: {method}. Must be either 'evcouplings' or 'eve'.")
+                    raise ValueError(f"Unknown method: {method}. Must be either 'evcouplings', 'eve' or 'identity'.")
                 print("Saving sequence weights to disk")
                 np.save(file=self.weights_location, arr=self.weights)
         else:
