@@ -19,6 +19,7 @@ import torch.backends.cudnn as cudnn
 from utils.data_utils import one_hot_3D
 from . import VAE_encoder, VAE_decoder
 
+
 class VAE_model(nn.Module):
     """
     Class for the VAE model with estimation of weights distribution parameters via Mean-Field VI.
@@ -46,8 +47,8 @@ class VAE_model(nn.Module):
         self.alphabet_size = alphabet_size if alphabet_size is not None else data.alphabet_size
         self.Neff = Neff if Neff is not None else data.Neff
 
-        self.encoder_parameters=encoder_parameters
-        self.decoder_parameters=decoder_parameters
+        self.encoder_parameters = encoder_parameters
+        self.decoder_parameters = decoder_parameters
 
         encoder_parameters['seq_len'] = self.seq_len
         encoder_parameters['alphabet_size'] = self.alphabet_size
@@ -66,14 +67,15 @@ class VAE_model(nn.Module):
         Samples a latent vector via reparametrization trick
         """
         eps = torch.randn_like(mu).to(self.device)
-        z = torch.exp(0.5*log_var) * eps + mu
+        z = torch.exp(0.5 * log_var) * eps + mu
         return z
 
     def KLD_diag_gaussians(self, mu, logvar, p_mu, p_logvar):
         """
         KL divergence between diagonal gaussian with prior diagonal gaussian.
         """
-        KLD = 0.5 * (p_logvar - logvar) + 0.5 * (torch.exp(logvar) + torch.pow(mu-p_mu,2)) / (torch.exp(p_logvar)+1e-20) - 0.5
+        KLD = 0.5 * (p_logvar - logvar) + 0.5 * (torch.exp(logvar) + torch.pow(mu - p_mu, 2)) / (
+                    torch.exp(p_logvar) + 1e-20) - 0.5
 
         return torch.sum(KLD)
 
@@ -82,7 +84,7 @@ class VAE_model(nn.Module):
         Annealing schedule of KL to focus on reconstruction error in early stages of training
         """
         if training_step < annealing_warm_up:
-            return training_step/annealing_warm_up
+            return training_step / annealing_warm_up
         else:
             return 1
 
@@ -94,54 +96,57 @@ class VAE_model(nn.Module):
         zero_tensor = torch.tensor(0.0).to(self.device)
 
         for layer_index in range(len(self.decoder.hidden_layers_sizes)):
-            for param_type in ['weight','bias']:
+            for param_type in ['weight', 'bias']:
                 KLD_decoder_params += self.KLD_diag_gaussians(
-                                    self.decoder.state_dict(keep_vars=True)['hidden_layers_mean.'+str(layer_index)+'.'+param_type].flatten(),
-                                    self.decoder.state_dict(keep_vars=True)['hidden_layers_log_var.'+str(layer_index)+'.'+param_type].flatten(),
-                                    zero_tensor,
-                                    zero_tensor
+                    self.decoder.state_dict(keep_vars=True)[
+                        'hidden_layers_mean.' + str(layer_index) + '.' + param_type].flatten(),
+                    self.decoder.state_dict(keep_vars=True)[
+                        'hidden_layers_log_var.' + str(layer_index) + '.' + param_type].flatten(),
+                    zero_tensor,
+                    zero_tensor
                 )
 
-        for param_type in ['weight','bias']:
-                KLD_decoder_params += self.KLD_diag_gaussians(
-                                        self.decoder.state_dict(keep_vars=True)['last_hidden_layer_'+param_type+'_mean'].flatten(),
-                                        self.decoder.state_dict(keep_vars=True)['last_hidden_layer_'+param_type+'_log_var'].flatten(),
-                                        zero_tensor,
-                                        zero_tensor
-                )
+        for param_type in ['weight', 'bias']:
+            KLD_decoder_params += self.KLD_diag_gaussians(
+                self.decoder.state_dict(keep_vars=True)['last_hidden_layer_' + param_type + '_mean'].flatten(),
+                self.decoder.state_dict(keep_vars=True)['last_hidden_layer_' + param_type + '_log_var'].flatten(),
+                zero_tensor,
+                zero_tensor
+            )
 
         if self.decoder.include_sparsity:
             self.logit_scale_sigma = 4.0
-            self.logit_scale_mu = 2.0**0.5 * self.logit_scale_sigma * erfinv(2.0 * self.logit_sparsity_p - 1.0)
+            self.logit_scale_mu = 2.0 ** 0.5 * self.logit_scale_sigma * erfinv(2.0 * self.logit_sparsity_p - 1.0)
 
             sparsity_mu = torch.tensor(self.logit_scale_mu).to(self.device)
-            sparsity_log_var = torch.log(torch.tensor(self.logit_scale_sigma**2)).to(self.device)
+            sparsity_log_var = torch.log(torch.tensor(self.logit_scale_sigma ** 2)).to(self.device)
             KLD_decoder_params += self.KLD_diag_gaussians(
-                                    self.decoder.state_dict(keep_vars=True)['sparsity_weight_mean'].flatten(),
-                                    self.decoder.state_dict(keep_vars=True)['sparsity_weight_log_var'].flatten(),
-                                    sparsity_mu,
-                                    sparsity_log_var
+                self.decoder.state_dict(keep_vars=True)['sparsity_weight_mean'].flatten(),
+                self.decoder.state_dict(keep_vars=True)['sparsity_weight_log_var'].flatten(),
+                sparsity_mu,
+                sparsity_log_var
             )
 
         if self.decoder.convolve_output:
             for param_type in ['weight']:
                 KLD_decoder_params += self.KLD_diag_gaussians(
-                                    self.decoder.state_dict(keep_vars=True)['output_convolution_mean.'+param_type].flatten(),
-                                    self.decoder.state_dict(keep_vars=True)['output_convolution_log_var.'+param_type].flatten(),
-                                    zero_tensor,
-                                    zero_tensor
+                    self.decoder.state_dict(keep_vars=True)['output_convolution_mean.' + param_type].flatten(),
+                    self.decoder.state_dict(keep_vars=True)['output_convolution_log_var.' + param_type].flatten(),
+                    zero_tensor,
+                    zero_tensor
                 )
 
         if self.decoder.include_temperature_scaler:
             KLD_decoder_params += self.KLD_diag_gaussians(
-                                    self.decoder.state_dict(keep_vars=True)['temperature_scaler_mean'].flatten(),
-                                    self.decoder.state_dict(keep_vars=True)['temperature_scaler_log_var'].flatten(),
-                                    zero_tensor,
-                                    zero_tensor
+                self.decoder.state_dict(keep_vars=True)['temperature_scaler_mean'].flatten(),
+                self.decoder.state_dict(keep_vars=True)['temperature_scaler_log_var'].flatten(),
+                zero_tensor,
+                zero_tensor
             )
         return KLD_decoder_params
 
-    def loss_function(self, x_recon_log, x, mu, log_var, kl_latent_scale, kl_global_params_scale, annealing_warm_up, training_step, Neff):
+    def loss_function(self, x_recon_log, x, mu, log_var, kl_latent_scale, kl_global_params_scale, annealing_warm_up,
+                      training_step, Neff):
         """
         Returns mean of negative ELBO, reconstruction loss and KL divergence across batch x.
         """
@@ -152,7 +157,8 @@ class VAE_model(nn.Module):
         else:
             KLD_decoder_params_normalized = 0.0
         warm_up_scale = self.annealing_factor(annealing_warm_up, training_step)
-        neg_ELBO = BCE + warm_up_scale * (kl_latent_scale * KLD_latent + kl_global_params_scale * KLD_decoder_params_normalized)
+        neg_ELBO = BCE + warm_up_scale * (
+                    kl_latent_scale * KLD_latent + kl_global_params_scale * KLD_decoder_params_normalized)
         return neg_ELBO, BCE, KLD_latent, KLD_decoder_params_normalized
 
     def all_likelihood_components(self, x):
@@ -163,11 +169,11 @@ class VAE_model(nn.Module):
         z = self.sample_latent(mu, log_var)
         recon_x_log = self.decoder(z)
 
-        recon_x_log = recon_x_log.view(-1,self.alphabet_size*self.seq_len)
-        x = x.view(-1,self.alphabet_size*self.seq_len)
+        recon_x_log = recon_x_log.view(-1, self.alphabet_size * self.seq_len)
+        x = x.view(-1, self.alphabet_size * self.seq_len)
 
-        BCE_batch_tensor = torch.sum(F.binary_cross_entropy_with_logits(recon_x_log, x, reduction='none'),dim=1)
-        KLD_batch_tensor = (-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(),dim=1))
+        BCE_batch_tensor = torch.sum(F.binary_cross_entropy_with_logits(recon_x_log, x, reduction='none'), dim=1)
+        KLD_batch_tensor = (-0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp(), dim=1))
 
         ELBO_batch_tensor = -(BCE_batch_tensor + KLD_batch_tensor)
 
@@ -202,21 +208,26 @@ class VAE_model(nn.Module):
         self.train()
 
         if training_parameters['log_training_info']:
-            filename = training_parameters['training_logs_location']+os.sep+self.model_name+"_losses.csv"
+            filename = training_parameters['training_logs_location'] + os.sep + self.model_name + "_losses.csv"
             with open(filename, "a") as logs:
-                logs.write("Number of sequences in alignment file:\t"+str(data.num_sequences)+"\n")
-                logs.write("Neff:\t"+str(self.Neff)+"\n")
-                logs.write("Alignment sequence length:\t"+str(data.seq_len)+"\n")
+                logs.write("Number of sequences in alignment file:\t" + str(data.num_sequences) + "\n")
+                logs.write("Neff:\t" + str(self.Neff) + "\n")
+                logs.write("Alignment sequence length:\t" + str(data.seq_len) + "\n")
 
-        optimizer = optim.Adam(self.parameters(), lr=training_parameters['learning_rate'], weight_decay=training_parameters['l2_regularization'])
+        optimizer = optim.Adam(self.parameters(), lr=training_parameters['learning_rate'],
+                               weight_decay=training_parameters['l2_regularization'])
 
         if training_parameters['use_lr_scheduler']:
-            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=training_parameters['lr_scheduler_step_size'], gamma=training_parameters['lr_scheduler_gamma'])
+            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=training_parameters['lr_scheduler_step_size'],
+                                                  gamma=training_parameters['lr_scheduler_gamma'])
 
         if training_parameters['use_validation_set']:
-            x_train, x_val, weights_train, weights_val = train_test_split(data.one_hot_encoding, data.weights, test_size=training_parameters['validation_set_pct'], random_state=self.random_seed)
+            x_train, x_val, weights_train, weights_val = train_test_split(data.one_hot_encoding, data.weights,
+                                                                          test_size=training_parameters[
+                                                                              'validation_set_pct'],
+                                                                          random_state=self.random_seed)
             best_val_loss = float('inf')
-            best_model_step_index=0
+            best_model_step_index = 0
         else:
             x_train = data.one_hot_encoding
             weights_train = data.weights
@@ -234,7 +245,7 @@ class VAE_model(nn.Module):
         start = time.time()
         train_loss = 0
 
-        for training_step in tqdm.tqdm(range(1,training_parameters['num_training_steps']+1), desc="Training model"):
+        for training_step in tqdm.tqdm(range(1, training_parameters['num_training_steps'] + 1), desc="Training model"):
             # Sample a batch according to sequence weight
             batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist()
             x = torch.tensor(x_train[batch_index], dtype=self.dtype).to(self.device)
@@ -253,36 +264,45 @@ class VAE_model(nn.Module):
                 scheduler.step()
 
             if training_step % training_parameters['log_training_freq'] == 0:
-                progress = "|Train : Update {0}. Negative ELBO : {1:.3f}, BCE: {2:.3f}, KLD_latent: {3:.3f}, KLD_decoder_params_norm: {4:.3f}, Time: {5:.2f} |".format(training_step, neg_ELBO, BCE, KLD_latent, KLD_decoder_params_normalized, time.time() - start)
+                progress = "|Train : Update {0}. Negative ELBO : {1:.3f}, BCE: {2:.3f}, KLD_latent: {3:.3f}, KLD_decoder_params_norm: {4:.3f}, Time: {5:.2f} |".format(
+                    training_step, neg_ELBO, BCE, KLD_latent, KLD_decoder_params_normalized, time.time() - start)
                 print(progress)
 
                 if training_parameters['log_training_info']:
                     with open(filename, "a+") as logs:
-                        logs.write(progress+"\n")
+                        logs.write(progress + "\n")
 
             if training_step % training_parameters['save_model_params_freq'] == 0:
-                self.save(model_checkpoint=training_parameters['model_checkpoint_location']+os.sep+self.model_name+"_step_"+str(training_step),
-                            encoder_parameters=self.encoder_parameters,
-                            decoder_parameters=self.decoder_parameters,
-                            training_parameters=training_parameters)
+                self.save(model_checkpoint=training_parameters[
+                                               'model_checkpoint_location'] + os.sep + self.model_name + "_step_" + str(
+                    training_step),
+                          encoder_parameters=self.encoder_parameters,
+                          decoder_parameters=self.decoder_parameters,
+                          training_parameters=training_parameters)
 
-            if training_parameters['use_validation_set'] and training_step % training_parameters['validation_freq'] == 0:
+            if training_parameters['use_validation_set'] and training_step % training_parameters[
+                'validation_freq'] == 0:
                 x_val = torch.tensor(x_val, dtype=self.dtype).to(self.device)
-                val_neg_ELBO, val_BCE, val_KLD_latent, val_KLD_global_parameters = self.test_model(x_val, weights_val, training_parameters['batch_size'])
+                val_neg_ELBO, val_BCE, val_KLD_latent, val_KLD_global_parameters = self.test_model(x_val, weights_val,
+                                                                                                   training_parameters[
+                                                                                                       'batch_size'])
 
-                progress_val = "\t\t\t|Val : Update {0}. Negative ELBO : {1:.3f}, BCE: {2:.3f}, KLD_latent: {3:.3f}, KLD_decoder_params_norm: {4:.3f}, Time: {5:.2f} |".format(training_step, val_neg_ELBO, val_BCE, val_KLD_latent, val_KLD_global_parameters, time.time() - start)
+                progress_val = "\t\t\t|Val : Update {0}. Negative ELBO : {1:.3f}, BCE: {2:.3f}, KLD_latent: {3:.3f}, KLD_decoder_params_norm: {4:.3f}, Time: {5:.2f} |".format(
+                    training_step, val_neg_ELBO, val_BCE, val_KLD_latent, val_KLD_global_parameters,
+                    time.time() - start)
                 print(progress_val)
                 if training_parameters['log_training_info']:
                     with open(filename, "a+") as logs:
-                        logs.write(progress_val+"\n")
+                        logs.write(progress_val + "\n")
 
                 if val_neg_ELBO < best_val_loss:
                     best_val_loss = val_neg_ELBO
                     best_model_step_index = training_step
-                    self.save(model_checkpoint=training_parameters['model_checkpoint_location']+os.sep+self.model_name+"_best",
-                                encoder_parameters=self.encoder_parameters,
-                                decoder_parameters=self.decoder_parameters,
-                                training_parameters=training_parameters)
+                    self.save(model_checkpoint=training_parameters[
+                                                   'model_checkpoint_location'] + os.sep + self.model_name + "_best",
+                              encoder_parameters=self.encoder_parameters,
+                              decoder_parameters=self.decoder_parameters,
+                              training_parameters=training_parameters)
                 self.train()
 
     def test_model(self, x_val, weights_val, batch_size):
@@ -298,7 +318,11 @@ class VAE_model(nn.Module):
             z = self.sample_latent(mu, log_var)
             recon_x_log = self.decoder(z)
 
-            neg_ELBO, BCE, KLD_latent, KLD_global_parameters = self.loss_function(recon_x_log, x, mu, log_var, kl_latent_scale=1.0, kl_global_params_scale=1.0, annealing_warm_up=0, training_step=1, Neff = self.Neff_training) #set annealing factor to 1
+            neg_ELBO, BCE, KLD_latent, KLD_global_parameters = self.loss_function(recon_x_log, x, mu, log_var,
+                                                                                  kl_latent_scale=1.0,
+                                                                                  kl_global_params_scale=1.0,
+                                                                                  annealing_warm_up=0, training_step=1,
+                                                                                  Neff=self.Neff_training)  # set annealing factor to 1
 
         return neg_ELBO.item(), BCE.item(), KLD_latent.item(), KLD_global_parameters.item()
 
@@ -306,11 +330,11 @@ class VAE_model(nn.Module):
         # Create intermediate dirs above this
         os.makedirs(os.path.dirname(model_checkpoint), exist_ok=True)
         torch.save({
-            'model_state_dict':self.state_dict(),
-            'encoder_parameters':encoder_parameters,
-            'decoder_parameters':decoder_parameters,
-            'training_parameters':training_parameters,
-            }, model_checkpoint)
+            'model_state_dict': self.state_dict(),
+            'encoder_parameters': encoder_parameters,
+            'decoder_parameters': decoder_parameters,
+            'training_parameters': training_parameters,
+        }, model_checkpoint)
 
     def compute_evol_indices(self, msa_data, list_mutations_location, num_samples, batch_size=256,
                              mutant_column="mutations", num_chunks=1, aggregation_method="full"):
