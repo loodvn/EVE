@@ -78,7 +78,7 @@ def main(args):
 
     weights_file = args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
     # First check that the weights file doesn't exist
-    if os.path.isfile(weights_file):
+    if os.path.isfile(weights_file) and not args.overwrite:
         if args.skip_existing:
             print("Weights file already exists, skipping, since --skip_existing was specified")
             exit(0)
