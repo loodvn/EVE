@@ -6,7 +6,7 @@ export PYTHONUNBUFFERED=1
 
 export MSA_data_folder='./data/MSA'
 export MSA_list='./data/mappings/example_mapping.csv'
-export MSA_weights_location='./data/weights2'
+export MSA_weights_location='./data/weights'
 export protein_index=0
 export num_cpus=1
 export calc_method='evcouplings'

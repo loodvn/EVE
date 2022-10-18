@@ -35,6 +35,7 @@ if __name__ == '__main__':
     print("Protein name: "+str(protein_name))
     print("MSA file: "+str(msa_location))
 
+    # Theta reweighting not necessary for computing evol indices
     # if args.theta_reweighting is not None:
     #     theta = args.theta_reweighting
     # else:

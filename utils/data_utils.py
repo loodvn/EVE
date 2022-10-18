@@ -7,9 +7,15 @@ import numpy as np
 import pandas as pd
 import torch
 
-# constants
 from utils.weights import map_from_alphabet, map_matrix, compute_sequence_weights, calc_weights_evcouplings
-from utils.constants import GAP, ALPHABET_PROTEIN_NOGAP, ALPHABET_PROTEIN_GAP
+
+# constants
+GAP = "-"
+MATCH_GAP = GAP
+INSERT_GAP = "."
+
+ALPHABET_PROTEIN_NOGAP = "ACDEFGHIKLMNPQRSTVWY"
+ALPHABET_PROTEIN_GAP = GAP + ALPHABET_PROTEIN_NOGAP
 
 
 class MSA_processing:
@@ -23,7 +29,7 @@ class MSA_processing:
                  threshold_focus_cols_frac_gaps=0.3,
                  remove_sequences_with_indeterminate_AA_in_focus_cols=True,
                  num_cpus=1,
-                 overwrite_weights=False,
+                 weights_calc_method="evcouplings",
                  ):
 
         """
@@ -47,7 +53,10 @@ class MSA_processing:
         - remove_sequences_with_indeterminate_AA_in_focus_cols: (bool) Remove all sequences that have indeterminate AA (e.g., B, J, X, Z) at focus positions of the wild type
         - num_cpus: (int) Number of CPUs to use for parallel weights calculation processing. If set to -1, all available CPUs are used. If set to 1, weights are computed in serial.
         - overwrite_weights: (bool) If True, calculate weights and overwrite weights file. If False, load weights from weights_location if it exists.
-        TODO these weights options should be more like calc_weights=[True/False], and the weights_location should be a list of locations to load from/save to.
+            TODO these weights options should be more like calc_weights=[True/False], and the weights_location should be a list of locations to load from/save to.
+        - weights_calc_method: (str) Method to use for calculating sequence weights. Options: "evcouplings","eve" or "identity". (default "evcouplings")
+        -   Note: For now the "evcouplings" method is modified to be equivalent to the "eve" method,
+                but the "evcouplings" method is faster as it uses numba.
         """
         np.random.seed(2021)
         self.MSA_location = MSA_location
@@ -75,10 +84,12 @@ class MSA_processing:
         self.all_single_mutations = None
 
         # Fill in the instance variables
-        self.gen_alignment(num_cpus=num_cpus)
+        self.gen_alignment()
+        self.calc_weights(num_cpus=num_cpus, method=weights_calc_method)
+
         self.create_all_singles()
 
-    def gen_alignment(self, num_cpus=1):
+    def gen_alignment(self):
         """ Read training alignment and store basics in class instance """
         self.aa_dict = {}
         for i, aa in enumerate(self.alphabet):
@@ -99,38 +110,13 @@ class MSA_processing:
 
         ## MSA pre-processing to remove inadequate columns and sequences
         if self.preprocess_MSA:
-            print("Pre-processing MSA to remove inadequate columns and sequences...")
-            msa_df = pd.DataFrame.from_dict(self.seq_name_to_sequence, orient='index', columns=['sequence'])
-            # Data clean up
-            msa_df.sequence = msa_df.sequence.apply(lambda x: x.replace(".", "-")).apply(
-                lambda x: ''.join([aa.upper() for aa in x]))
-            # Remove columns that would be gaps in the wild type
-            non_gap_wt_cols = [aa != '-' for aa in msa_df.sequence[self.focus_seq_name]]
-            msa_df['sequence'] = msa_df['sequence'].apply(
-                lambda x: ''.join([aa for aa, non_gap_ind in zip(x, non_gap_wt_cols) if non_gap_ind]))
-            assert 0.0 <= self.threshold_sequence_frac_gaps <= 1.0, "Invalid fragment filtering parameter"
-            assert 0.0 <= self.threshold_focus_cols_frac_gaps <= 1.0, "Invalid focus position filtering parameter"
-            msa_array = np.array([list(seq) for seq in msa_df.sequence])
-            gaps_array = np.array(list(map(lambda seq: [aa == '-' for aa in seq], msa_array)))
-            # Identify fragments with too many gaps
-            seq_gaps_frac = gaps_array.mean(axis=1)
-            seq_below_threshold = seq_gaps_frac <= self.threshold_sequence_frac_gaps
-            print("Proportion of sequences dropped due to fraction of gaps: " + str(
-                round(float(1 - seq_below_threshold.sum() / seq_below_threshold.shape) * 100, 2)) + "%")
-            # Identify focus columns
-            columns_gaps_frac = gaps_array[seq_below_threshold].mean(axis=0)
-            index_cols_below_threshold = columns_gaps_frac <= self.threshold_focus_cols_frac_gaps
-            print("Proportion of non-focus columns removed: " + str(
-                round(float(1 - index_cols_below_threshold.sum() / index_cols_below_threshold.shape) * 100, 2)) + "%")
-            # Lower case non focus cols and filter fragment sequences
-            msa_df['sequence'] = msa_df['sequence'].apply(lambda x: ''.join(
-                [aa.upper() if upper_case_ind else aa.lower() for aa, upper_case_ind in
-                 zip(x, index_cols_below_threshold)]))
-            msa_df = msa_df[seq_below_threshold]
-            # Overwrite seq_name_to_sequence with clean version
-            self.seq_name_to_sequence = defaultdict(str)
-            for seq_idx in range(len(msa_df['sequence'])):
-                self.seq_name_to_sequence[msa_df.index[seq_idx]] = msa_df.sequence[seq_idx]
+            # Overwrite self.seq_name_to_sequence
+            self.seq_name_to_sequence = self.preprocess_msa(
+                seq_name_to_sequence=self.seq_name_to_sequence,
+                focus_seq_name=self.focus_seq_name,
+                threshold_sequence_frac_gaps=self.threshold_sequence_frac_gaps,
+                threshold_focus_cols_frac_gaps=self.threshold_focus_cols_frac_gaps
+            )
 
         self.focus_seq = self.seq_name_to_sequence[self.focus_seq_name]
         self.focus_cols = [ix for ix, s in enumerate(self.focus_seq) if s == s.upper() and s != '-']
@@ -176,12 +162,47 @@ class MSA_processing:
             seq_length=self.seq_len,
         )
 
-        self.calc_weights(num_cpus=num_cpus)
+    # Using staticmethod to keep this under the MSAProcessing namespace, but this is apparently not best practice
+    @staticmethod
+    def preprocess_msa(seq_name_to_sequence, focus_seq_name, threshold_sequence_frac_gaps, threshold_focus_cols_frac_gaps):
+        """Remove inadequate columns and sequences from MSA, overwrite self.seq_name_to_sequence."""
+        print("Pre-processing MSA to remove inadequate columns and sequences...")
+        msa_df = pd.DataFrame.from_dict(seq_name_to_sequence, orient='index', columns=['sequence'])
+        # Data clean up
+        msa_df.sequence = msa_df.sequence.apply(lambda x: x.replace(".", "-")).apply(
+            lambda x: ''.join([aa.upper() for aa in x]))
+        # Remove columns that would be gaps in the wild type
+        non_gap_wt_cols = [aa != '-' for aa in msa_df.sequence[focus_seq_name]]
+        msa_df['sequence'] = msa_df['sequence'].apply(
+            lambda x: ''.join([aa for aa, non_gap_ind in zip(x, non_gap_wt_cols) if non_gap_ind]))
+        assert 0.0 <= threshold_sequence_frac_gaps <= 1.0, "Invalid fragment filtering parameter"
+        assert 0.0 <= threshold_focus_cols_frac_gaps <= 1.0, "Invalid focus position filtering parameter"
+        msa_array = np.array([list(seq) for seq in msa_df.sequence])
+        gaps_array = np.array(list(map(lambda seq: [aa == '-' for aa in seq], msa_array)))
+        # Identify fragments with too many gaps
+        seq_gaps_frac = gaps_array.mean(axis=1)
+        seq_below_threshold = seq_gaps_frac <= threshold_sequence_frac_gaps
+        print("Proportion of sequences dropped due to fraction of gaps: " + str(
+            round(float(1 - seq_below_threshold.sum() / seq_below_threshold.shape) * 100, 2)) + "%")
+        # Identify focus columns
+        columns_gaps_frac = gaps_array[seq_below_threshold].mean(axis=0)
+        index_cols_below_threshold = columns_gaps_frac <= threshold_focus_cols_frac_gaps
+        print("Proportion of non-focus columns removed: " + str(
+            round(float(1 - index_cols_below_threshold.sum() / index_cols_below_threshold.shape) * 100, 2)) + "%")
+        # Lower case non focus cols and filter fragment sequences
+        def _lower_case_and_filter_fragments(seq):
+            return ''.join([aa.lower() if aa_ix in index_cols_below_threshold else aa for aa_ix, aa in enumerate(seq)])
+        msa_df['sequence'] = msa_df['sequence'].apply(
+            lambda seq: ''.join([aa.upper() if upper_case_ind else aa.lower() for aa, upper_case_ind in
+             zip(seq, index_cols_below_threshold)]))
+        msa_df = msa_df[seq_below_threshold]
+        # Overwrite seq_name_to_sequence with clean version
+        seq_name_to_sequence = defaultdict(str)
+        for seq_idx in range(len(msa_df['sequence'])):
+            seq_name_to_sequence[msa_df.index[seq_idx]] = msa_df.sequence[seq_idx]
 
-        print("Neff =", str(self.Neff))
-        print("Data Shape =", self.one_hot_encoding.shape)
+        return seq_name_to_sequence
 
-    # Refactored into its own function so that we can call it separately
     def calc_weights(self, num_cpus=1, method="evcouplings"):
         """
         If num_cpus == 1, weights are computed in serial.
@@ -189,8 +210,9 @@ class MSA_processing:
         Note: This will use multiprocessing.cpu_count() to get the number of available cores, which on clusters may
         return all cores, not just the number of cores available to the user.
         """
+        # Refactored into its own function so that we can call it separately
         if self.use_weights:
-            if os.path.isfile(self.weights_location) and not self.overwrite_weights:
+            if os.path.isfile(self.weights_location) and not self.overwrite_weights::
                 print("Loading sequence weights from disk")
                 self.weights = np.load(file=self.weights_location)
             else:
@@ -218,8 +240,10 @@ class MSA_processing:
                     self.weights = compute_sequence_weights(list_seq, self.theta, num_cpus=num_cpus)
                     end = time.perf_counter()
                     print(f"EVE weights took {end - start:.2f} seconds")
+                elif method == "identity":
+                    self.weights = np.ones(self.one_hot_encoding.shape[0])
                 else:
-                    raise ValueError(f"Unknown method: {method}. Must be either 'evcouplings' or 'eve'.")
+                    raise ValueError(f"Unknown method: {method}. Must be either 'evcouplings', 'eve' or 'identity'.")
                 print("Saving sequence weights to disk")
                 np.save(file=self.weights_location, arr=self.weights)
         else:
@@ -229,6 +253,9 @@ class MSA_processing:
 
         self.Neff = np.sum(self.weights)
         self.num_sequences = self.one_hot_encoding.shape[0]
+
+        print("Neff =", str(self.Neff))
+        print("Data Shape =", self.one_hot_encoding.shape)
 
         return self.weights
 
