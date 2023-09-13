@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import numba
 from numba import prange
+from numba_progress import ProgressBar
 
 import numpy as np
 from tqdm import tqdm
@@ -169,7 +170,7 @@ def calc_weights_evcouplings(matrix_mapped, identity_threshold, empty_value, num
     N = matrix_mapped.shape[0]
 
     # Original EVCouplings code structure, plus gap handling
-    if num_cpus > 1:
+    if num_cpus != 1:
         # Numba native parallel:
         # print("Calculating weights using Numba parallel (experimental) since num_cpus > 1. "
         #       "If you want to disable multiprocessing set num_cpus=1.")
@@ -180,23 +181,29 @@ def calc_weights_evcouplings(matrix_mapped, identity_threshold, empty_value, num
         # print("Set number of threads to:", numba.get_num_threads())
         # num_cluster_members = calc_num_cluster_members_nogaps_parallel(matrix_mapped[~empty_idx], identity_threshold,
         #                                                                invalid_value=empty_value)
-        print("Num CPUs for EVCouplings code:", num_cpus)
-        print(
-            f"Calculating weights using Numba JIT and multiprocessing (experimental) since num_cpus ({num_cpus}) > 1. "
-            "If you want to disable multiprocessing set num_cpus=1.")
-        with multiprocessing.Pool(processes=num_cpus, initializer=_init_worker_ev,
-                                  initargs=(matrix_mapped[~empty_idx], empty_value, identity_threshold)) as pool:
-            # Simply: Chunksize is between 1 and 64, preferably N / num_cpus / 16,
-            # so every CPU gets a 16th of their expected total every time they ask for more work.
-            #  Too small values: Too much overhead sending simple indexes to workers, and them sending back results.
-            #  Too large: May wait a while for the last worker's task to finish.
-            chunksize = max(1, min(64, int(N / num_cpus / 16)))
-            print("chunksize: " + str(chunksize))
+        
+        
+        update_frequency=1000
+        with ProgressBar(total=N, update_interval=30, miniters=update_frequency) as progress:  # can also use tqdm mininterval, maxinterval etc
+            num_cluster_members = calc_num_cluster_members_nogaps_parallel_print(matrix_mapped[~empty_idx], identity_threshold,
+                                                                       invalid_value=empty_value, progress_proxy=progress, update_frequency=update_frequency)
+    #     print("Num CPUs for EVCouplings code:", num_cpus)
+    #     print(
+    #         f"Calculating weights using Numba JIT and multiprocessing (experimental) since num_cpus ({num_cpus}) > 1. "
+    #         "If you want to disable multiprocessing set num_cpus=1.")
+    #     with multiprocessing.Pool(processes=num_cpus, initializer=_init_worker_ev,
+    #                               initargs=(matrix_mapped[~empty_idx], empty_value, identity_threshold)) as pool:
+    #         # Simply: Chunksize is between 1 and 64, preferably N / num_cpus / 16,
+    #         # so every CPU gets a 16th of their expected total every time they ask for more work.
+    #         #  Too small values: Too much overhead sending simple indexes to workers, and them sending back results.
+    #         #  Too large: May wait a while for the last worker's task to finish.
+    #         chunksize = max(1, min(64, int(N / num_cpus / 16)))
+    #         print("chunksize: " + str(chunksize))
 
-            # imap: Lazy version of map
-            # Parallel progress bars are complicated and pollute logs
-            cluster_map = tqdm(pool.imap(_worker_func, range(N), chunksize=chunksize), total=N, mininterval=1)
-            num_cluster_members = np.array(list(cluster_map))
+    #         # imap: Lazy version of map
+    #         # Parallel progress bars are complicated and pollute logs
+    #         cluster_map = tqdm(pool.imap(_worker_func, range(N), chunksize=chunksize), total=N, mininterval=1)
+    #         num_cluster_members = np.array(list(cluster_map))
     else:
         num_cluster_members = calc_num_cluster_members_nogaps(matrix_mapped[~empty_idx], identity_threshold,
                                                               invalid_value=empty_value)
@@ -293,6 +300,7 @@ def map_matrix(matrix, map_):
     """
     return np.vectorize(map_.__getitem__)(matrix)
 
+# The main function
 
 @numba.jit(nopython=True, fastmath=True, parallel=True)
 def calc_num_cluster_members_nogaps_parallel(matrix, identity_threshold, invalid_value):
@@ -343,6 +351,61 @@ def calc_num_cluster_members_nogaps_parallel(matrix, identity_threshold, invalid
                 num_neighbors_i += 1
 
         num_neighbors[i] = num_neighbors_i
+
+    return num_neighbors
+
+@numba.jit(nopython=True, fastmath=True, parallel=True)
+def calc_num_cluster_members_nogaps_parallel_print(matrix, identity_threshold, invalid_value, progress_proxy=None, update_frequency=1000):
+    """
+    From EVCouplings: https://github.com/debbiemarkslab/EVcouplings
+    Calculate number of sequences in alignment
+    within given identity_threshold of each other
+    Parameters
+    ----------
+    matrix : np.array
+        N x L matrix containing N sequences of length L.
+        Matrix must be mapped to range(0, num_symbols) using
+        map_matrix function
+    identity_threshold : float
+        Sequences with at least this pairwise identity will be
+        grouped in the same cluster.
+    invalid_value : int
+        Value in matrix that is considered invalid, e.g. gap or lowercase character.
+    Returns
+    -------
+    np.array
+        Vector of length N containing number of cluster
+        members for each sequence (inverse of sequence
+        weight)
+    """
+    
+    N, L = matrix.shape
+    L = 1.0 * L
+
+    # Empty sequences are filtered out before this function and are ignored
+    # minimal cluster size is 1 (self)
+    num_neighbors = np.ones((N))
+    L_non_gaps = L - np.sum(matrix == invalid_value, axis=1)  # Edit: From EVE, use the non-gapped length
+    # compare all pairs of sequences
+    # Edit: Rewrote loop without any dependencies between inner and outer loops, so that it can be parallelized
+    for i in prange(N):
+        num_neighbors_i = 1  # num_neighbors_i = 0  # TODO why did I make this 0 again? Probably because I thought I'd have to count i == j
+        for j in range(N):
+            if i == j:
+                continue
+            pair_matches = 0
+            for k in range(L):  # This should hopefully be vectorised by numba
+                if matrix[i, k] == matrix[j, k] and matrix[
+                    i, k] != invalid_value:  # Edit(Lood): Don't count gaps as matches
+                    pair_matches += 1
+            # Edit(Lood): Calculate identity as fraction of non-gapped positions (so this similarity is asymmetric)
+            # Note: Changed >= to > to match EVE / DeepSequence code
+            if pair_matches / L_non_gaps[i] > identity_threshold:
+                num_neighbors_i += 1
+
+        num_neighbors[i] = num_neighbors_i
+        if progress_proxy is not None and i % update_frequency == 0:
+            progress_proxy.update(update_frequency)
 
     return num_neighbors
 

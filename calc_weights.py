@@ -34,6 +34,8 @@ def create_argparser():
 def main(args):
     print("Arguments:", args)
 
+    weights_file = None
+
     if args.MSA_filepath is not None:
         assert os.path.isfile(args.MSA_filepath), f"MSA filepath {args.MSA_filepath} doesn't exist"
         msa_location = args.MSA_filepath
@@ -44,6 +46,11 @@ def main(args):
         protein_name = mapping_file['protein_name'][args.protein_index]
         msa_location = args.MSA_data_folder + os.sep + mapping_file['msa_location'][args.protein_index]
         print("Protein name: " + str(protein_name))
+        # If weights_file is in the df_mapping, use that instead
+        if "weight_file_name" in mapping_file.columns:
+            weights_file = args.MSA_weights_location + os.sep + mapping_file["weight_file_name"][args.protein_index]
+            print("Using weights filename from mapping file:", weights_file)
+
     print("MSA file: " + str(msa_location))
 
     if args.theta_reweighting is not None:
@@ -71,12 +78,18 @@ def main(args):
     if not os.path.isdir(args.MSA_weights_location):
         # exist_ok=True: Otherwise we'll get some race conditions between concurrent jobs
         os.makedirs(args.MSA_weights_location, exist_ok=True)
-        print(f"{args.MSA_weights_location} is not a directory. "
-              f"Being nice and creating it for you, but this might be a mistake.")
-        # raise NotADirectoryError(f"{args.MSA_weights_location} is not a directory."
-        #                          f"Could create it automatically, but at the moment raising an error.")
+        # print(f"{args.MSA_weights_location} is not a directory. "
+        #       f"Being nice and creating it for you, but this might be a mistake.")
+        raise NotADirectoryError(f"{args.MSA_weights_location} is not a directory."
+                                 f"Could create it automatically, but at the moment raising an error.")
+    else:
+        print(f"MSA weights directory: {args.MSA_weights_location}")
 
-    weights_file = args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
+    if weights_file is None:
+        print("Weights filename not found - writing to new file")
+        weights_file = args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
+
+    print(f"Writing to {weights_file}")
     # First check that the weights file doesn't exist
     if os.path.isfile(weights_file) and not args.overwrite:
         if args.skip_existing:
@@ -96,6 +109,7 @@ def main(args):
         num_cpus=args.num_cpus,
         weights_calc_method=args.calc_method,
         overwrite_weights=args.overwrite,
+        debug_only_weights=True,
         **data_kwargs,
     )
 

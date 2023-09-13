@@ -5,9 +5,12 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 import torch
 
 from utils.weights import map_from_alphabet, map_matrix, compute_sequence_weights, calc_weights_evcouplings
+
+# TODOs: Can get rid of one_hot_encodings when only calculating weights right?
 
 # constants
 GAP = "-"
@@ -31,6 +34,7 @@ class MSA_processing:
                  num_cpus=1,
                  weights_calc_method="evcouplings",
                  overwrite_weights=False,
+                 debug_only_weights=False,
                  ):
 
         """
@@ -70,6 +74,8 @@ class MSA_processing:
         self.threshold_sequence_frac_gaps = threshold_sequence_frac_gaps
         self.threshold_focus_cols_frac_gaps = threshold_focus_cols_frac_gaps
         self.remove_sequences_with_indeterminate_AA_in_focus_cols = remove_sequences_with_indeterminate_AA_in_focus_cols
+        self.debug_only_weights = debug_only_weights
+        self.weights_calc_method = weights_calc_method
 
         # Defined by gen_alignment
         self.aa_dict = {}
@@ -87,8 +93,10 @@ class MSA_processing:
         # Fill in the instance variables
         self.gen_alignment()
         self.calc_weights(num_cpus=num_cpus, method=weights_calc_method)
-
-        self.create_all_singles()
+        
+        if not self.debug_only_weights:
+            print("Creating all single mutations")
+            self.create_all_singles()
 
     def gen_alignment(self):
         """ Read training alignment and store basics in class instance """
@@ -153,15 +161,20 @@ class MSA_processing:
             seq_names_to_remove = list(set(seq_names_to_remove))
             for seq_name in seq_names_to_remove:
                 del self.seq_name_to_sequence[seq_name]
-
-        # Encode the sequences
-        print("One-hot encoding sequences")
-        self.one_hot_encoding = one_hot_3D(
-            seq_keys=self.seq_name_to_sequence.keys(),  # Note: Dicts are unordered for python < 3.6
-            seq_name_to_sequence=self.seq_name_to_sequence,
-            alphabet=self.alphabet,
-            seq_length=self.seq_len,
-        )
+        
+        print("Number of sequences after preprocessing:", len(self.seq_name_to_sequence))
+        
+        if self.debug_only_weights and self.weights_calc_method == "evcouplings":
+            print("Weights-only mode with evcouplings: Skipping one-hot encodings")
+        else:
+            # Encode the sequences
+            print("One-hot encoding sequences")
+            self.one_hot_encoding = one_hot_3D(
+                seq_keys=self.seq_name_to_sequence.keys(),  # Note: Dicts are unordered for python < 3.6
+                seq_name_to_sequence=self.seq_name_to_sequence,
+                alphabet=self.alphabet,
+                seq_length=self.seq_len,
+            )
 
     # Using staticmethod to keep this under the MSAProcessing namespace, but this is apparently not best practice
     @staticmethod
@@ -178,6 +191,7 @@ class MSA_processing:
             lambda x: ''.join([aa for aa, non_gap_ind in zip(x, non_gap_wt_cols) if non_gap_ind]))
         assert 0.0 <= threshold_sequence_frac_gaps <= 1.0, "Invalid fragment filtering parameter"
         assert 0.0 <= threshold_focus_cols_frac_gaps <= 1.0, "Invalid focus position filtering parameter"
+        print("Calculating proportion of gaps")
         msa_array = np.array([list(seq) for seq in msa_df.sequence])
         gaps_array = np.array(list(map(lambda seq: [aa == '-' for aa in seq], msa_array)))
         # Identify fragments with too many gaps
@@ -219,8 +233,15 @@ class MSA_processing:
             else:
                 print("Computing sequence weights")
                 if num_cpus == -1:
-                    num_cpus = multiprocessing.cpu_count()
-                    print("Using all available cores (calculated using multiprocessing.cpu_count()):", num_cpus)
+                    #multiprocessing.cpu_count()
+                    if 'SLURM_CPUS_PER_TASK' in os.environ:
+                        num_cpus = int(os.environ['SLURM_CPUS_PER_TASK'])
+                        print("SLURM_CPUS_PER_TASK:", os.environ['SLURM_CPUS_PER_TASK'])
+                        print("Using all available cores (calculated using SLURM_CPUS_PER_TASK):", num_cpus)
+                    else:
+                        num_cpus = len(os.sched_getaffinity(0)) 
+                        print("Using all available cores (calculated using len(os.sched_getaffinity(0))):", num_cpus)
+                    
 
                 if method == "evcouplings":
                     alphabet_mapper = map_from_alphabet(ALPHABET_PROTEIN_GAP, default=GAP)
@@ -253,10 +274,14 @@ class MSA_processing:
             self.weights = np.ones(self.one_hot_encoding.shape[0])
 
         self.Neff = np.sum(self.weights)
-        self.num_sequences = self.one_hot_encoding.shape[0]
+        self.num_sequences = self.weights.shape[0]
 
         print("Neff =", str(self.Neff))
-        print("Data Shape =", self.one_hot_encoding.shape)
+        
+        if self.debug_only_weights and self.weights_calc_method == "evcouplings":
+            print("Num sequences: ", self.num_sequences)
+        else:
+            print("Data Shape =", self.one_hot_encoding.shape)
 
         return self.weights
 
@@ -334,7 +359,7 @@ def one_hot_3D(seq_keys, seq_name_to_sequence, alphabet, seq_length):
     aa_dict = {letter: i for (i, letter) in enumerate(alphabet)}
 
     one_hot_out = np.zeros((len(seq_keys), seq_length, len(alphabet)))
-    for i, seq_key in enumerate(seq_keys):
+    for i, seq_key in enumerate(tqdm(seq_keys, desc="One-hot encoding sequences", mininterval=1)):
         sequence = seq_name_to_sequence[seq_key]
         for j, letter in enumerate(sequence):
             if letter in aa_dict:
