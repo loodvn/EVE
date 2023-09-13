@@ -245,9 +245,9 @@ class VAE_model(nn.Module):
         start = time.time()
         train_loss = 0
 
-        for training_step in tqdm.tqdm(range(1, training_parameters['num_training_steps'] + 1), desc="Training model"):
+        for training_step in tqdm.tqdm(range(1, training_parameters['num_training_steps'] + 1), desc="Training model", mininterval=10):
             # Sample a batch according to sequence weight
-            batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist()
+            batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist() # TODO change this to dataloader if we want to do async one-hot-encoding
             x = torch.tensor(x_train[batch_index], dtype=self.dtype).to(self.device)
             optimizer.zero_grad()
 
@@ -352,10 +352,6 @@ class VAE_model(nn.Module):
         size_per_chunk = int(len(full_data) / num_chunks)
         print("size_per_chunk: " + str(size_per_chunk))
 
-        print("Debugging:")
-        print("uniprot_focus_col_to_wt_aa_dict: {}".format(msa_data.uniprot_focus_col_to_wt_aa_dict))
-        print("mutant_to_letter_pos_idx_focus_list: {}".format(msa_data.mutant_to_letter_pos_idx_focus_list))
-
         for chunk in range(num_chunks):
             print("chunk #: " + str(chunk))
             data_chunk = full_data[chunk * size_per_chunk:(chunk + 1) * size_per_chunk]
@@ -452,7 +448,7 @@ class VAE_model(nn.Module):
                 for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
                     x = batch.type(self.dtype).to(self.device)
                     for j in tqdm.tqdm(range(num_samples),
-                                       'Looping through number of samples for batch #: ' + str(i + 1), mininterval=1):
+                                       'Looping through number of samples for batch #: ' + str(i + 1), mininterval=5):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
                         prediction_matrix[i * batch_size:i * batch_size + len(x), j] = seq_predictions
                     tqdm.tqdm.write('\n')
@@ -504,7 +500,7 @@ class VAE_model(nn.Module):
                     mu, log_var = self.encoder(x)
 
                     for j in tqdm.tqdm(range(num_samples),
-                                       'Looping through number of samples for batch #: ' + str(i + 1), mininterval=1):
+                                       'Looping through number of samples for batch #: ' + str(i + 1), mininterval=5):
                         seq_predictions, _, _ = self.all_likelihood_components_z(x, mu, log_var)
                         # Using Welford's method https://stackoverflow.com/a/15638726/10447904
                         # All still on GPU
