@@ -1,6 +1,8 @@
 import argparse
 import json
+import time
 import os
+
 
 import pandas as pd
 
@@ -27,6 +29,7 @@ if __name__ == '__main__':
         default=False)
     parser.add_argument("--overwrite_weights", help="Will overwrite weights file if it already exists", action="store_true", default=False)
     parser.add_argument("--skip_existing", help="Will quit gracefully if model checkpoint file already exists", action="store_true", default=False)
+    parser.add_argument("--batch_size", type=int, help="Batch size for training", default=None)
 
     args = parser.parse_args()
 
@@ -93,6 +96,7 @@ if __name__ == '__main__':
         theta=theta,
         use_weights=True,
         weights_location=weights_file,
+        debug_only_weights=True,  # Trying to calculate one-hot-encodings on the fly
         **data_kwargs,
     )
     # TODO Note that protein_name isn't unique, so we'll have to use DMS id in some cases. Ideally we should have an MSA_id or something
@@ -104,6 +108,9 @@ if __name__ == '__main__':
     if args.z_dim:
         model_params["encoder_parameters"]["z_dim"] = args.z_dim
         model_params["decoder_parameters"]["z_dim"] = args.z_dim
+    if args.batch_size is not None:
+        print("Using batch_size from command line: ", args.batch_size)
+        model_params["training_parameters"]["batch_size"] = args.batch_size
 
     model = VAE_model.VAE_model(
                     model_name=model_name,
@@ -118,8 +125,13 @@ if __name__ == '__main__':
     model_params["training_parameters"]['model_checkpoint_location'] = args.VAE_checkpoint_location
     
 
+    print("debug batch size=", model_params["training_parameters"]["batch_size"])
     print("Starting to train model: " + model_name)
-    model.train_model(data=data, training_parameters=model_params["training_parameters"])
+    start = time.perf_counter()
+    model.train_model(data=data, training_parameters=model_params["training_parameters"], use_dataloader=True)
+    end = time.perf_counter()
+    # Show time in hours,minutes,seconds
+    print(f"Finished in {(end - start)//60//60}hours {(end - start)//60%60} minutes and {(end - start)%60} seconds")
 
     print("Saving model: " + model_name)
     model.save(model_checkpoint=model_checkpoint_final_path,

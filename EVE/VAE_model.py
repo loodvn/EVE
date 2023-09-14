@@ -6,7 +6,7 @@ from resource import getrusage, RUSAGE_SELF
 import numpy as np
 import pandas as pd
 import time
-import tqdm
+from tqdm import tqdm
 from scipy.special import erfinv
 from sklearn.model_selection import train_test_split
 
@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
-from utils.data_utils import one_hot_3D
+from utils.data_utils import one_hot_3D, get_dataloader
 from . import VAE_encoder, VAE_decoder
 
 
@@ -196,7 +196,7 @@ class VAE_model(nn.Module):
 
         return ELBO_batch_tensor, BCE_batch_tensor, KLD_batch_tensor
 
-    def train_model(self, data, training_parameters):
+    def train_model(self, data, training_parameters, use_dataloader=False):
         """
         Training procedure for the VAE model.
         If use_validation_set is True then:
@@ -223,6 +223,7 @@ class VAE_model(nn.Module):
                                                   gamma=training_parameters['lr_scheduler_gamma'])
 
         if training_parameters['use_validation_set']:
+            # TODO fix this for use with a dataloader
             x_train, x_val, weights_train, weights_val = train_test_split(data.one_hot_encoding, data.weights,
                                                                           test_size=training_parameters[
                                                                               'validation_set_pct'],
@@ -234,21 +235,38 @@ class VAE_model(nn.Module):
             weights_train = data.weights
             best_val_loss = None
             best_model_step_index = training_parameters['num_training_steps']
-
-        batch_order = np.arange(x_train.shape[0])
+        
         seq_sample_probs = weights_train / np.sum(weights_train)
-
-        assert batch_order.shape == seq_sample_probs.shape, f"batch_order and seq_sample_probs must have the same shape. batch_order.shape={batch_order.shape}, seq_sample_probs.shape={seq_sample_probs.shape}"
+        assert len(data.seq_name_to_sequence) == weights_train.shape[0]  # One weight per sequence
+        
+        if use_dataloader:
+            # Stream one-hot encodings
+            dataloader = get_dataloader(msa_data=data, batch_size=training_parameters['batch_size'], num_training_steps=training_parameters['num_training_steps'])
+        else:
+            batch_order = np.arange(x_train.shape[0])
+            assert batch_order.shape == seq_sample_probs.shape, f"batch_order and seq_sample_probs must have the same shape. batch_order.shape={batch_order.shape}, seq_sample_probs.shape={seq_sample_probs.shape}"
+            def get_mock_dataloader():
+                while True:
+                    # Sample a batch according to sequence weight
+                    batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist() # TODO change this to dataloader if we want to do async one-hot-encoding
+                    batch = x_train[batch_index]
+                    yield batch
+            dataloader = get_mock_dataloader()
 
         self.Neff_training = np.sum(weights_train)
 
         start = time.time()
         train_loss = 0
-
-        for training_step in tqdm.tqdm(range(1, training_parameters['num_training_steps'] + 1), desc="Training model", mininterval=10):
-            # Sample a batch according to sequence weight
-            batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist() # TODO change this to dataloader if we want to do async one-hot-encoding
-            x = torch.tensor(x_train[batch_index], dtype=self.dtype).to(self.device)
+        print("debug starting training here:")
+        for training_step, batch in enumerate(tqdm(dataloader, desc="Training model", total=training_parameters['num_training_steps'], mininterval=2)):#mininterval=10)):
+            
+            if training_step >= training_parameters['num_training_steps']:
+                print("debug Breaking at step", training_step)
+                break
+            x = batch.to(self.device, dtype=self.dtype)
+            if training_step == 0:
+                print("Got batch 1")
+                
             optimizer.zero_grad()
 
             mu, log_var = self.encoder(x)
@@ -310,6 +328,8 @@ class VAE_model(nn.Module):
                               decoder_parameters=self.decoder_parameters,
                               training_parameters=training_parameters)
                 self.train()
+        print("TMP: Finished training, last training_step=", training_step)
+        
 
     def test_model(self, x_val, weights_val, batch_size):
         self.eval()
@@ -445,9 +465,9 @@ class VAE_model(nn.Module):
             print(
                 f"tmp debug: storage size of mutated_sequences_one_hot: {sys.getsizeof(prediction_matrix.storage()) / 1e9:.4f} GB")
             with torch.no_grad():
-                for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
+                for i, batch in enumerate(tqdm(dataloader, 'Looping through mutation batches')):
                     x = batch.type(self.dtype).to(self.device)
-                    for j in tqdm.tqdm(range(num_samples),
+                    for j in tqdm(range(num_samples),
                                        'Looping through number of samples for batch #: ' + str(i + 1), mininterval=5):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
                         prediction_matrix[i * batch_size:i * batch_size + len(x), j] = seq_predictions
@@ -464,14 +484,14 @@ class VAE_model(nn.Module):
             std_predictions = torch.zeros(len(list_valid_mutations))
 
             with torch.no_grad():
-                for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
+                for i, batch in enumerate(tqdm(dataloader, 'Looping through mutation batches')):
                     x = batch.type(self.dtype).to(self.device)
 
                     # Simplest: Aggregate mean and std each batch (instead of online per sample)
                     # Reduce memory by factor of num_batches (num_valid_mutations / batch_size)
                     batch_samples = torch.zeros(size=(len(x), 20_000),
                                                 dtype=self.dtype)  # Store these on CPU to save GPU memory
-                    for j in tqdm.tqdm(range(num_samples),
+                    for j in tqdm(range(num_samples),
                                        'Looping through number of samples for batch #: ' + str(i + 1), mininterval=1):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
                         batch_samples[:, j] = seq_predictions.detach().cpu()
@@ -488,7 +508,7 @@ class VAE_model(nn.Module):
             mean_predictions = torch.zeros(len(list_valid_mutations))
             std_predictions = torch.zeros(len(list_valid_mutations))
             with torch.no_grad():
-                for i, batch in enumerate(tqdm.tqdm(dataloader, 'Looping through mutation batches')):
+                for i, batch in enumerate(tqdm(dataloader, 'Looping through mutation batches')):
                     x = batch.type(self.dtype).to(self.device)
                     print(
                         f"{datetime.datetime.now()} tmp Peak memory in GB: {getrusage(RUSAGE_SELF).ru_maxrss / 1024 ** 2:.3f}")
@@ -499,7 +519,7 @@ class VAE_model(nn.Module):
                     # Run this once per batch to speed up remaining loop
                     mu, log_var = self.encoder(x)
 
-                    for j in tqdm.tqdm(range(num_samples),
+                    for j in tqdm(range(num_samples),
                                        'Looping through number of samples for batch #: ' + str(i + 1), mininterval=5):
                         seq_predictions, _, _ = self.all_likelihood_components_z(x, mu, log_var)
                         # Using Welford's method https://stackoverflow.com/a/15638726/10447904

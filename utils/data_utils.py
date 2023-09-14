@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import torch
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 from utils.weights import map_from_alphabet, map_matrix, compute_sequence_weights, calc_weights_evcouplings
 
@@ -234,13 +235,7 @@ class MSA_processing:
                 print("Computing sequence weights")
                 if num_cpus == -1:
                     #multiprocessing.cpu_count()
-                    if 'SLURM_CPUS_PER_TASK' in os.environ:
-                        num_cpus = int(os.environ['SLURM_CPUS_PER_TASK'])
-                        print("SLURM_CPUS_PER_TASK:", os.environ['SLURM_CPUS_PER_TASK'])
-                        print("Using all available cores (calculated using SLURM_CPUS_PER_TASK):", num_cpus)
-                    else:
-                        num_cpus = len(os.sched_getaffinity(0)) 
-                        print("Using all available cores (calculated using len(os.sched_getaffinity(0))):", num_cpus)
+                    num_cpus = get_num_cpus()
                     
 
                 if method == "evcouplings":
@@ -383,3 +378,95 @@ def gen_one_hot_to_sequence(one_hot_tensor, alphabet):
 
 def one_hot_to_sequence_list(one_hot_tensor, alphabet):
     return list(gen_one_hot_to_sequence(one_hot_tensor, alphabet))
+
+def get_one_hot_3D_fn(msa_data):
+        aa_dict = {letter: i for (i, letter) in enumerate(msa_data.alphabet)}
+
+        def fn(batch_seqs):
+            one_hot_out = np.zeros((len(batch_seqs), msa_data.seq_len, len(msa_data.alphabet)))
+            for i, sequence in enumerate(batch_seqs):
+                for j, letter in enumerate(sequence):
+                    if letter in aa_dict:
+                        k = aa_dict[letter]
+                        one_hot_out[i, j, k] = 1.0
+            one_hot_out = torch.tensor(one_hot_out)
+            return one_hot_out
+        return fn
+    
+def get_num_cpus():
+    if 'SLURM_CPUS_PER_TASK' in os.environ:
+        num_cpus = int(os.environ['SLURM_CPUS_PER_TASK'])
+        print("SLURM_CPUS_PER_TASK:", os.environ['SLURM_CPUS_PER_TASK'])
+        print("Using all available cores (calculated using SLURM_CPUS_PER_TASK):", num_cpus)
+    else:
+        num_cpus = len(os.sched_getaffinity(0)) 
+        print("Using all available cores (calculated using len(os.sched_getaffinity(0))):", num_cpus)
+    return num_cpus
+
+class OneHotDataset(Dataset):
+    def __init__(self, seq_keys, seq_name_to_sequence, alphabet, seq_length, total_length=None):
+        self.seq_keys = list(seq_keys)
+        self.seq_name_to_sequence = seq_name_to_sequence
+        self.alphabet = alphabet
+        self.seq_length = seq_length
+        self.aa_dict = {letter: i for (i, letter) in enumerate(alphabet)}
+        if total_length is None:
+            self.total_length = len(self.seq_keys)
+        else:
+            self.total_length = int(total_length)
+
+    def __len__(self):
+        return self.total_length
+
+    def __getitem__(self, idx):
+        seq_key = self.seq_keys[idx]
+        sequence = self.seq_name_to_sequence[seq_key]
+        return sequence
+
+class InfiniteDataLoader(DataLoader):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.iter_loader = super().__iter__()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            batch = next(self.iter_loader)
+        except StopIteration:
+            # If the inner DataLoader has exhausted the dataset, reset it
+            self.iter_loader = super().__iter__()
+            batch = next(self.iter_loader)
+        return batch
+
+def get_dataloader(msa_data: MSA_processing, batch_size, num_training_steps):
+    print("Going to hackily set the length of the dataset to the number of training steps, not the actual number of sequences.")
+    dataset = OneHotDataset(
+        seq_keys=msa_data.seq_name_to_sequence.keys(), 
+        seq_name_to_sequence=msa_data.seq_name_to_sequence, 
+        alphabet=msa_data.alphabet, 
+        seq_length=msa_data.seq_len) #, total_length=num_training_steps
+    # This can take a ton of memory if the weights or num_training_steps*batch_size are large
+    sampler = WeightedRandomSampler(weights=msa_data.weights, num_samples=num_training_steps*batch_size, replacement=True)
+    num_cpus = 1 # get_num_cpus() # TODO test with only 1 CPU
+        
+    one_hot_fn = get_one_hot_3D_fn(msa_data)
+    
+    def collate_fn(batch_seqs):
+        # Construct a batch of one-hot-encodings
+        batch_seq_tensor = one_hot_fn(batch_seqs)
+        return batch_seq_tensor
+    
+    
+    # dataloader = DataLoader(dataset, 
+    
+    # Other option for avoiding the problem of the dataset running out: Wrap it with an iterable that refreshes it every time
+    dataloader = InfiniteDataLoader(
+        dataset=dataset,
+        batch_size=batch_size, 
+        num_workers=num_cpus,  # collate_fn is not parallelized, so no speedup with multiple CPUs
+        sampler=sampler, 
+        collate_fn=collate_fn,) #pin_memory=True
+    
+    return dataloader
