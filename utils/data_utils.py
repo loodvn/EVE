@@ -236,7 +236,6 @@ class MSA_processing:
                 if num_cpus == -1:
                     #multiprocessing.cpu_count()
                     num_cpus = get_num_cpus()
-                    
 
                 if method == "evcouplings":
                     alphabet_mapper = map_from_alphabet(ALPHABET_PROTEIN_GAP, default=GAP)

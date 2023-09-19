@@ -239,6 +239,7 @@ class VAE_model(nn.Module):
         seq_sample_probs = weights_train / np.sum(weights_train)
         assert len(data.seq_name_to_sequence) == weights_train.shape[0]  # One weight per sequence
         
+        # TMP TODO: Keep old behaviour for comparison
         if use_dataloader:
             # Stream one-hot encodings
             dataloader = get_dataloader(msa_data=data, batch_size=training_parameters['batch_size'], num_training_steps=training_parameters['num_training_steps'])
@@ -248,7 +249,7 @@ class VAE_model(nn.Module):
             def get_mock_dataloader():
                 while True:
                     # Sample a batch according to sequence weight
-                    batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist() # TODO change this to dataloader if we want to do async one-hot-encoding
+                    batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist()
                     batch = x_train[batch_index]
                     yield batch
             dataloader = get_mock_dataloader()
@@ -330,7 +331,7 @@ class VAE_model(nn.Module):
                 self.train()
         print("TMP: Finished training, last training_step=", training_step)
         
-
+        
     def test_model(self, x_val, weights_val, batch_size):
         self.eval()
 

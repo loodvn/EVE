@@ -30,6 +30,7 @@ if __name__ == '__main__':
     parser.add_argument("--overwrite_weights", help="Will overwrite weights file if it already exists", action="store_true", default=False)
     parser.add_argument("--skip_existing", help="Will quit gracefully if model checkpoint file already exists", action="store_true", default=False)
     parser.add_argument("--batch_size", type=int, help="Batch size for training", default=None)
+    parser.add_argument("--experimental_stream_data", help="Load one-hot-encodings on the fly", action="store_true", default=False)
 
     args = parser.parse_args()
 
@@ -96,7 +97,7 @@ if __name__ == '__main__':
         theta=theta,
         use_weights=True,
         weights_location=weights_file,
-        debug_only_weights=True,  # Trying to calculate one-hot-encodings on the fly
+        debug_only_weights=args.experimental_stream_data,  # Trying to calculate one-hot-encodings on the fly
         **data_kwargs,
     )
     # TODO Note that protein_name isn't unique, so we'll have to use DMS id in some cases. Ideally we should have an MSA_id or something
@@ -128,7 +129,7 @@ if __name__ == '__main__':
     print("debug batch size=", model_params["training_parameters"]["batch_size"])
     print("Starting to train model: " + model_name)
     start = time.perf_counter()
-    model.train_model(data=data, training_parameters=model_params["training_parameters"], use_dataloader=True)
+    model.train_model(data=data, training_parameters=model_params["training_parameters"], use_dataloader=args.experimental_stream_data)
     end = time.perf_counter()
     # Show time in hours,minutes,seconds
     print(f"Finished in {(end - start)//60//60}hours {(end - start)//60%60} minutes and {(end - start)%60} seconds")
