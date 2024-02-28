@@ -417,6 +417,8 @@ class VAE_model(nn.Module):
             for mut in individual_substitutions:
                 try:
                     wt_aa, pos, mut_aa = mut[0], int(mut[1:-1]), mut[-1]
+                    if wt_aa == mut_aa: # Skip synonymous
+                        continue 
                     # Log specific invalid mutants
                     if pos not in msa_data.uniprot_focus_col_to_wt_aa_dict:
                         print("pos {} not in uniprot_focus_col_to_wt_aa_dict".format(pos))
@@ -472,7 +474,7 @@ class VAE_model(nn.Module):
                                        'Looping through number of samples for batch #: ' + str(i + 1), mininterval=5):
                         seq_predictions, _, _ = self.all_likelihood_components(x)
                         prediction_matrix[i * batch_size:i * batch_size + len(x), j] = seq_predictions
-                    tqdm.tqdm.write('\n')
+                    tqdm.write('\n')
                 mean_predictions = prediction_matrix.mean(dim=1, keepdim=False)
                 std_predictions = prediction_matrix.std(dim=1, keepdim=False)
                 delta_elbos = mean_predictions - mean_predictions[0]
