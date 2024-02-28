@@ -40,11 +40,11 @@ if __name__=='__main__':
     mapping_file = pd.read_csv(args.MSA_list)
     print("Mapping file head:\n", mapping_file.head())
     DMS_id = mapping_file['DMS_id'][args.protein_index]
-    protein_name = mapping_file['UniProt_ID'][args.protein_index]  # Using Javier's mapping file
+    protein_name = mapping_file['protein_name'][args.protein_index] # Using protein_name instead of UniProt_ID, because UniProt_ID is not unique
     DMS_filename = mapping_file['DMS_filename'][args.protein_index]
     mutant = mapping_file['DMS_filename'][args.protein_index]
     msa_location = args.MSA_data_folder + os.sep + mapping_file['MSA_filename'][args.protein_index]
-    DMS_mutant_column = mapping_file['DMS_mutant_column'][args.protein_index]  # Using Javier's mapping file
+    DMS_mutant_column = "mutant"  # Use mutant column, because DMS_mutant_column refers to the column before processing
     print("Protein name: "+str(protein_name))
     print("MSA file: "+str(msa_location))
     print("DMS id: "+str(DMS_id))
@@ -54,6 +54,10 @@ if __name__=='__main__':
     # Check filepaths are valid
     evol_indices_output_filename = os.path.join(args.output_evol_indices_location, DMS_id + '_' + protein_name + '_' + str(
         args.num_samples_compute_evol_indices) + '_samples' + args.output_evol_indices_filename_suffix + '.csv')
+    # Can also just reuse the DMS filename
+    # if not DMS_filename.endswith('.csv'):
+    #     DMS_filename = DMS_filename + '.csv'
+    # evol_indices_output_filename = os.path.join(args.output_evol_indices_location, DMS_filename)
 
     if os.path.isfile(evol_indices_output_filename):
         print("Output file already exists: " + str(evol_indices_output_filename))
@@ -66,6 +70,7 @@ if __name__=='__main__':
             print("To skip scoring for existing files, use --skip_existing")
     # Check if surrounding directory exists
     else:
+        print("Output file: " + str(evol_indices_output_filename))
         assert os.path.isdir(os.path.dirname(evol_indices_output_filename)), \
             'Output directory does not exist: {}. Please create directory before running script.\nOutput filename given: {}.\nDebugging curdir={}'\
             .format(os.path.dirname(evol_indices_output_filename), evol_indices_output_filename, os.getcwd())
@@ -93,7 +98,7 @@ if __name__=='__main__':
     )
 
     print("MSA data object loaded.")
-    print(f"Current time: {datetime.datetime.now()}, peak memory usage: {getrusage(RUSAGE_SELF).ru_maxrss}")
+    print(f"Current time: {datetime.datetime.now()}, Peak memory in GB: {getrusage(RUSAGE_SELF).ru_maxrss / 1024**2:.3f}")
 
     if args.computation_mode=="all_singles":
         data.save_all_singles(output_filename=args.all_singles_mutations_folder + os.sep + protein_name + "_all_singles.csv")
@@ -116,10 +121,12 @@ if __name__=='__main__':
     model = model.to(model.device)
 
     checkpoint_name = str(args.VAE_checkpoint_location) + os.sep + model_name + "_final"
+    if not os.path.exists(checkpoint_name):
+        checkpoint_name = str(args.VAE_checkpoint_location) + os.sep + os.path.splitext(mapping_file['MSA_filename'][args.protein_index])[0] + "_" + args.model_name_suffix + "_final"
     assert os.path.isfile(checkpoint_name), 'Checkpoint file does not exist: {}'.format(checkpoint_name)
 
     try:
-        checkpoint = torch.load(checkpoint_name)
+        checkpoint = torch.load(checkpoint_name, map_location=model.device)  # Added map_location so that this works with CPU too
         model.load_state_dict(checkpoint['model_state_dict'])
         print("Initialized VAE with checkpoint '{}' ".format(checkpoint_name))
     except Exception as e:
