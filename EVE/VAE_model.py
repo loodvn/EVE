@@ -202,7 +202,10 @@ class VAE_model(nn.Module):
         If use_validation_set is True then:
             - we split the alignment data in train/val sets.
             - we train up to num_training_steps steps but store the version of the model with lowest loss on validation set across training
-        If not, then we train the model for num_training_steps and save the model at the end of training
+        If not, then we train the model for num_training_steps and save the model at the end of training.
+        
+        use_dataloader: Whether to stream in the one-hot encodings via a dataloader. 
+        If False, loads in the entire one-hot encoding matrix into memory and iterates over it.
         """
         if torch.cuda.is_available():
             cudnn.benchmark = True
@@ -239,7 +242,7 @@ class VAE_model(nn.Module):
         seq_sample_probs = weights_train / np.sum(weights_train)
         assert len(data.seq_name_to_sequence) == weights_train.shape[0]  # One weight per sequence
         
-        # TMP TODO: Keep old behaviour for comparison
+        # Keep old behaviour for comparison
         if use_dataloader:
             # Stream one-hot encodings
             dataloader = get_dataloader(msa_data=data, batch_size=training_parameters['batch_size'], num_training_steps=training_parameters['num_training_steps'])

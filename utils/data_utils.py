@@ -9,9 +9,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
-from utils.weights import map_from_alphabet, map_matrix, compute_sequence_weights, calc_weights_evcouplings
-
-# TODOs: Can get rid of one_hot_encodings when only calculating weights right?
+from utils.weights import map_from_alphabet, map_matrix, calc_weights_fast
 
 # constants
 GAP = "-"
@@ -58,11 +56,11 @@ class MSA_processing:
             - default is set to 0.3 (i.e., focus positions are the ones with 30% of gaps or less, i.e., 70% or more residue occupancy)
         - remove_sequences_with_indeterminate_AA_in_focus_cols: (bool) Remove all sequences that have indeterminate AA (e.g., B, J, X, Z) at focus positions of the wild type
         - num_cpus: (int) Number of CPUs to use for parallel weights calculation processing. If set to -1, all available CPUs are used. If set to 1, weights are computed in serial.
-        - weights_calc_method: (str) Method to use for calculating sequence weights. Options: "evcouplings","eve" or "identity". (default "evcouplings")
-        -   Note: For now the "evcouplings" method is modified to be equivalent to the "eve" method,
-                but the "evcouplings" method is faster as it uses numba.
+        - weights_calc_method: (str) Method to use for calculating sequence weights. Options: "eve" or "identity". (default "eve")
         - overwrite_weights: (bool) If True, calculate weights and overwrite weights file. If False, load weights from weights_location if it exists.
-            TODO these weights options should be more like calc_weights=[True/False], and the weights_location should be a list of locations to load from/save to.
+            Ideally, these weights options should be more like calc_weights=[True/False], and the weights_location should be a location to load from/save to.
+        - debug_only_weights: (bool) If True, only use this class to calculate weights. Skip the one-hot encodings (which can be very memory/compute intensive) 
+            and don't calculate all singles.
         """
         np.random.seed(2021)
         self.MSA_location = MSA_location
@@ -165,8 +163,8 @@ class MSA_processing:
         
         print("Number of sequences after preprocessing:", len(self.seq_name_to_sequence))
         
-        if self.debug_only_weights and self.weights_calc_method == "evcouplings":
-            print("Weights-only mode with evcouplings: Skipping one-hot encodings")
+        if self.debug_only_weights and self.weights_calc_method == "eve":
+            print("Weights-only mode with eve: Skipping one-hot encodings.")
         else:
             # Encode the sequences
             print("One-hot encoding sequences")
@@ -234,32 +232,24 @@ class MSA_processing:
             else:
                 print("Computing sequence weights")
                 if num_cpus == -1:
-                    #multiprocessing.cpu_count()
                     num_cpus = get_num_cpus()
 
-                if method == "evcouplings":
+                if method == "eve":
                     alphabet_mapper = map_from_alphabet(ALPHABET_PROTEIN_GAP, default=GAP)
                     arrays = []
                     for seq in self.seq_name_to_sequence.values():
                         arrays.append(np.array(list(seq)))
                     sequences = np.vstack(arrays)
                     sequences_mapped = map_matrix(sequences, alphabet_mapper)
-                    print("Starting EVCouplings calculation")
                     start = time.perf_counter()
-                    self.weights = calc_weights_evcouplings(sequences_mapped, identity_threshold=1 - self.theta,
+                    self.weights = calc_weights_fast(sequences_mapped, identity_threshold=1 - self.theta,
                                                             empty_value=0, num_cpus=num_cpus)  # GAP = 0
                     end = time.perf_counter()
-                    print(f"EVCouplings weights took {end - start:.2f} seconds")
-                elif method == "eve":
-                    list_seq = self.one_hot_encoding.numpy()
-                    start = time.perf_counter()
-                    self.weights = compute_sequence_weights(list_seq, self.theta, num_cpus=num_cpus)
-                    end = time.perf_counter()
-                    print(f"EVE weights took {end - start:.2f} seconds")
+                    print(f"Weights calculation took {end - start:.2f} seconds")
                 elif method == "identity":
                     self.weights = np.ones(self.one_hot_encoding.shape[0])
                 else:
-                    raise ValueError(f"Unknown method: {method}. Must be either 'evcouplings', 'eve' or 'identity'.")
+                    raise ValueError(f"Unknown method: {method}. Must be either 'eve' or 'identity'.")
                 print("Saving sequence weights to disk")
                 np.save(file=self.weights_location, arr=self.weights)
         else:
@@ -272,7 +262,7 @@ class MSA_processing:
 
         print("Neff =", str(self.Neff))
         
-        if self.debug_only_weights and self.weights_calc_method == "evcouplings":
+        if self.debug_only_weights and self.weights_calc_method == "eve":
             print("Num sequences: ", self.num_sequences)
         else:
             print("Data Shape =", self.one_hot_encoding.shape)
@@ -423,6 +413,7 @@ class OneHotDataset(Dataset):
         return sequence
 
 class InfiniteDataLoader(DataLoader):
+    """Dataloader that reloads it's dataset every epoch"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.iter_loader = super().__iter__()
@@ -440,15 +431,15 @@ class InfiniteDataLoader(DataLoader):
         return batch
 
 def get_dataloader(msa_data: MSA_processing, batch_size, num_training_steps):
-    print("Going to hackily set the length of the dataset to the number of training steps, not the actual number of sequences.")
+    """To avoid issues with storing all one-hot encodings in memory, we can calculate them on the fly with a small performance overhead."""
     dataset = OneHotDataset(
         seq_keys=msa_data.seq_name_to_sequence.keys(), 
         seq_name_to_sequence=msa_data.seq_name_to_sequence, 
         alphabet=msa_data.alphabet, 
-        seq_length=msa_data.seq_len) #, total_length=num_training_steps
+        seq_length=msa_data.seq_len)
     # This can take a ton of memory if the weights or num_training_steps*batch_size are large
     sampler = WeightedRandomSampler(weights=msa_data.weights, num_samples=num_training_steps*batch_size, replacement=True)
-    num_cpus = 1 # get_num_cpus() # TODO test with only 1 CPU
+    num_cpus = get_num_cpus()
         
     one_hot_fn = get_one_hot_3D_fn(msa_data)
     
@@ -457,10 +448,7 @@ def get_dataloader(msa_data: MSA_processing, batch_size, num_training_steps):
         batch_seq_tensor = one_hot_fn(batch_seqs)
         return batch_seq_tensor
     
-    
-    # dataloader = DataLoader(dataset, 
-    
-    # Other option for avoiding the problem of the dataset running out: Wrap it with an iterable that refreshes it every time
+    # Avoiding the problem of the dataset running out: Wrap it with an iterable that refreshes it every time
     dataloader = InfiniteDataLoader(
         dataset=dataset,
         batch_size=batch_size, 
