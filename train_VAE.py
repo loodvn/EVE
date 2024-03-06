@@ -120,7 +120,7 @@ if __name__ == '__main__':
         theta=theta,
         use_weights=True,
         weights_location=weights_file,
-        debug_only_weights=args.experimental_stream_data,  # If we're only streaming in the one-hot encodings, we can set this to True to disable one-hot encoding calculations.
+        skip_one_hot_encodings=args.experimental_stream_data,  # If we're only streaming in the one-hot encodings, we can set this to True to disable one-hot encoding calculations.
         **data_kwargs,
     )
 

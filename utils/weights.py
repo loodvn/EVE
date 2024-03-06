@@ -201,7 +201,7 @@ def calc_num_cluster_members_nogaps_parallel(matrix, identity_threshold, invalid
     # compare all pairs of sequences
     # Edit: Rewrote loop without any dependencies between inner and outer loops, so that it can be parallelized
     for i in prange(N):
-        num_neighbors_i = 1  # num_neighbors_i = 0  # TODO why did I make this 0 again? Probably because I thought I'd have to count i == j
+        num_neighbors_i = 1
         for j in range(N):
             if i == j:
                 continue
@@ -241,7 +241,7 @@ def calc_num_cluster_members_nogaps_parallel_print(matrix, identity_threshold, i
     # compare all pairs of sequences
     # Edit: Rewrote loop without any dependencies between inner and outer loops, so that it can be parallelized
     for i in prange(N):
-        num_neighbors_i = 1  # num_neighbors_i = 0  # TODO why did I make this 0 again? Probably because I thought I'd have to count i == j
+        num_neighbors_i = 1
         for j in range(N):
             if i == j:
                 continue

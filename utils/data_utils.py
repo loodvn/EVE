@@ -31,9 +31,9 @@ class MSA_processing:
                  threshold_focus_cols_frac_gaps=0.3,
                  remove_sequences_with_indeterminate_AA_in_focus_cols=True,
                  num_cpus=1,
-                 weights_calc_method="evcouplings",
+                 weights_calc_method="eve",
                  overwrite_weights=False,
-                 debug_only_weights=False,
+                 skip_one_hot_encodings=False,
                  ):
 
         """
@@ -59,7 +59,7 @@ class MSA_processing:
         - weights_calc_method: (str) Method to use for calculating sequence weights. Options: "eve" or "identity". (default "eve")
         - overwrite_weights: (bool) If True, calculate weights and overwrite weights file. If False, load weights from weights_location if it exists.
             Ideally, these weights options should be more like calc_weights=[True/False], and the weights_location should be a location to load from/save to.
-        - debug_only_weights: (bool) If True, only use this class to calculate weights. Skip the one-hot encodings (which can be very memory/compute intensive) 
+        - skip_one_hot_encodings: (bool) If True, only use this class to calculate weights. Skip the one-hot encodings (which can be very memory/compute intensive)
             and don't calculate all singles.
         """
         np.random.seed(2021)
@@ -73,7 +73,7 @@ class MSA_processing:
         self.threshold_sequence_frac_gaps = threshold_sequence_frac_gaps
         self.threshold_focus_cols_frac_gaps = threshold_focus_cols_frac_gaps
         self.remove_sequences_with_indeterminate_AA_in_focus_cols = remove_sequences_with_indeterminate_AA_in_focus_cols
-        self.debug_only_weights = debug_only_weights
+        self.skip_one_hot_encodings = skip_one_hot_encodings
         self.weights_calc_method = weights_calc_method
 
         # Defined by gen_alignment
@@ -93,7 +93,7 @@ class MSA_processing:
         self.gen_alignment()
         self.calc_weights(num_cpus=num_cpus, method=weights_calc_method)
         
-        if not self.debug_only_weights:
+        if not self.skip_one_hot_encodings:
             print("Creating all single mutations")
             self.create_all_singles()
 
@@ -162,10 +162,9 @@ class MSA_processing:
                 del self.seq_name_to_sequence[seq_name]
         
         print("Number of sequences after preprocessing:", len(self.seq_name_to_sequence))
-        
-        if self.debug_only_weights and self.weights_calc_method == "eve":
-            print("Weights-only mode with eve: Skipping one-hot encodings.")
-        else:
+
+        self.num_sequences = len(self.seq_name_to_sequence.keys())
+        if not self.skip_one_hot_encodings:
             # Encode the sequences
             print("One-hot encoding sequences")
             self.one_hot_encoding = one_hot_3D(
@@ -173,7 +172,9 @@ class MSA_processing:
                 seq_name_to_sequence=self.seq_name_to_sequence,
                 alphabet=self.alphabet,
                 seq_length=self.seq_len,
+                progress=True,
             )
+            print("Data Shape =", self.one_hot_encoding.shape)
 
     # Using staticmethod to keep this under the MSAProcessing namespace, but this is apparently not best practice
     @staticmethod
@@ -217,7 +218,7 @@ class MSA_processing:
 
         return seq_name_to_sequence
 
-    def calc_weights(self, num_cpus=1, method="evcouplings"):
+    def calc_weights(self, num_cpus=1, method="eve"):
         """
         If num_cpus == 1, weights are computed in serial.
         If num_cpus == -1, weights are computed in parallel using all available cores.
@@ -247,7 +248,7 @@ class MSA_processing:
                     end = time.perf_counter()
                     print(f"Weights calculation took {end - start:.2f} seconds")
                 elif method == "identity":
-                    self.weights = np.ones(self.one_hot_encoding.shape[0])
+                    self.weights = np.ones(self.num_sequences)
                 else:
                     raise ValueError(f"Unknown method: {method}. Must be either 'eve' or 'identity'.")
                 print("Saving sequence weights to disk")
@@ -255,17 +256,11 @@ class MSA_processing:
         else:
             # If not using weights, use an isotropic weight matrix
             print("Not weighting sequence data")
-            self.weights = np.ones(self.one_hot_encoding.shape[0])
+            self.weights = np.ones(self.num_sequences)
 
         self.Neff = np.sum(self.weights)
-        self.num_sequences = self.weights.shape[0]
-
         print("Neff =", str(self.Neff))
-        
-        if self.debug_only_weights and self.weights_calc_method == "eve":
-            print("Num sequences: ", self.num_sequences)
-        else:
-            print("Data Shape =", self.one_hot_encoding.shape)
+        print("Num sequences: ", self.num_sequences)
 
         return self.weights
 
@@ -336,14 +331,14 @@ def generate_mutated_sequences(msa_data, list_mutations):
 
 # Copied from VAE_model.compute_evol_indices
 # One-hot encoding of sequences
-def one_hot_3D(seq_keys, seq_name_to_sequence, alphabet, seq_length):
+def one_hot_3D(seq_keys, seq_name_to_sequence, alphabet, seq_length, progress=False):
     """
     Take in a list of sequence names/keys and corresponding sequences, and generate a one-hot array according to an alphabet.
     """
     aa_dict = {letter: i for (i, letter) in enumerate(alphabet)}
 
     one_hot_out = np.zeros((len(seq_keys), seq_length, len(alphabet)))
-    for i, seq_key in enumerate(tqdm(seq_keys, desc="One-hot encoding sequences", mininterval=1)):
+    for i, seq_key in enumerate(tqdm(seq_keys, desc="One-hot encoding sequences", mininterval=1, disable=not progress)):
         sequence = seq_name_to_sequence[seq_key]
         for j, letter in enumerate(sequence):
             if letter in aa_dict:
@@ -368,11 +363,11 @@ def gen_one_hot_to_sequence(one_hot_tensor, alphabet):
 def one_hot_to_sequence_list(one_hot_tensor, alphabet):
     return list(gen_one_hot_to_sequence(one_hot_tensor, alphabet))
 
-def get_one_hot_3D_fn(msa_data):
-        aa_dict = {letter: i for (i, letter) in enumerate(msa_data.alphabet)}
+def get_one_hot_3D_fn(alphabet, seq_len):
+        aa_dict = {letter: i for (i, letter) in enumerate(alphabet)}
 
         def fn(batch_seqs):
-            one_hot_out = np.zeros((len(batch_seqs), msa_data.seq_len, len(msa_data.alphabet)))
+            one_hot_out = np.zeros((len(batch_seqs), seq_len, len(alphabet)))
             for i, sequence in enumerate(batch_seqs):
                 for j, letter in enumerate(sequence):
                     if letter in aa_dict:
@@ -392,7 +387,8 @@ def get_num_cpus():
         print("Using all available cores (calculated using len(os.sched_getaffinity(0))):", num_cpus)
     return num_cpus
 
-class OneHotDataset(Dataset):
+
+class SequenceDataset(Dataset):
     def __init__(self, seq_keys, seq_name_to_sequence, alphabet, seq_length, total_length=None):
         self.seq_keys = list(seq_keys)
         self.seq_name_to_sequence = seq_name_to_sequence
@@ -412,6 +408,7 @@ class OneHotDataset(Dataset):
         sequence = self.seq_name_to_sequence[seq_key]
         return sequence
 
+
 class InfiniteDataLoader(DataLoader):
     """Dataloader that reloads it's dataset every epoch"""
     def __init__(self, *args, **kwargs):
@@ -430,9 +427,37 @@ class InfiniteDataLoader(DataLoader):
             batch = next(self.iter_loader)
         return batch
 
-def get_dataloader(msa_data: MSA_processing, batch_size, num_training_steps):
+
+def get_one_hot_dataloader(seq_keys, seq_name_to_sequence, alphabet, seq_len, batch_size):
     """To avoid issues with storing all one-hot encodings in memory, we can calculate them on the fly with a small performance overhead."""
-    dataset = OneHotDataset(
+    dataset = SequenceDataset(
+        seq_keys=seq_keys,
+        seq_name_to_sequence=seq_name_to_sequence,
+        alphabet=alphabet,
+        seq_length=seq_len)
+
+    # num_cpus = get_num_cpus()
+
+    one_hot_fn = get_one_hot_3D_fn(alphabet, seq_len)
+
+    def collate_fn(batch_seqs):
+        # Construct a batch of one-hot-encodings
+        batch_seq_tensor = one_hot_fn(batch_seqs)
+        return batch_seq_tensor
+
+    dataloader = DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=1,  # collate_fn is not parallelized, so no speedup with multiple CPUs
+        collate_fn=collate_fn)  # pin_memory=True
+
+    return dataloader
+
+
+def get_training_dataloader(msa_data: MSA_processing, batch_size, num_training_steps):
+    """Similar to get_one_hot_dataloader, but based on the MSA_processing object and reloading the dataset each epoch."""
+    dataset = SequenceDataset(
         seq_keys=msa_data.seq_name_to_sequence.keys(), 
         seq_name_to_sequence=msa_data.seq_name_to_sequence, 
         alphabet=msa_data.alphabet, 
@@ -441,7 +466,7 @@ def get_dataloader(msa_data: MSA_processing, batch_size, num_training_steps):
     sampler = WeightedRandomSampler(weights=msa_data.weights, num_samples=num_training_steps*batch_size, replacement=True)
     num_cpus = get_num_cpus()
         
-    one_hot_fn = get_one_hot_3D_fn(msa_data)
+    one_hot_fn = get_one_hot_3D_fn(msa_data.alphabet, msa_data.seq_len)
     
     def collate_fn(batch_seqs):
         # Construct a batch of one-hot-encodings

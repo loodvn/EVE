@@ -109,7 +109,7 @@ def main(args):
         num_cpus=args.num_cpus,
         weights_calc_method=args.calc_method,
         overwrite_weights=args.overwrite,
-        debug_only_weights=True,
+        skip_one_hot_encodings=True,
         **data_kwargs,
     )
 
