@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='VAE')
     parser.add_argument('--MSA_data_folder', type=str,
                         help='Folder where MSAs are stored', required=True)
-    parser.add_argument('--DMS_reference_file_path', type=str,
+    parser.add_argument('--MSA_list', type=str,
                         help='List of proteins and corresponding MSA file name', required=True)
     parser.add_argument('--protein_index', type=int,
                         help='Row index of protein in input mapping file', required=True)
@@ -21,15 +21,14 @@ if __name__ == '__main__':
                         help='Location where weights for each sequence in the MSA will be stored', required=True)
     parser.add_argument('--theta_reweighting', type=float,
                         help='Parameters for MSA sequence re-weighting')
-    parser.add_argument('--VAE_checkpoint_location', type=str,
-                        help='Location where VAE model checkpoints will be stored', required=True)
+    parser.add_argument('--VAE_checkpoint_location', type=str, help='Location where VAE model checkpoints will be stored', required=True)
+    parser.add_argument('--model_name_suffix', help='Model checkpoint name will be the protein name followed by this suffix')
     parser.add_argument('--model_parameters_location', type=str,
                         help='Location of VAE model parameters', required=True)
     parser.add_argument('--training_logs_location', type=str,
                         help='Location of VAE model parameters')
     parser.add_argument("--seed", type=int, help="Random seed", default=42)
-    parser.add_argument(
-        '--z_dim', type=int, help='Specify a different latent dim than in the params file')
+    parser.add_argument('--z_dim', type=int, help='Specify a different latent dim than in the params file')
     parser.add_argument("--threshold_focus_cols_frac_gaps", type=float,
                         help="Maximum fraction of gaps allowed in focus columns - see data_utils.MSA_processing")
     parser.add_argument('--force_load_weights', action='store_true',
@@ -42,23 +41,22 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", type=int,
                         help="Batch size for training", default=None)
     parser.add_argument("--experimental_stream_data",
-                        help="Load one-hot-encodings on the fly", action="store_true", default=False)
+                        help="Load one-hot-encodings on the fly. Saves a lot of memory by not storing the whole one-hot matrix (sometimes >300GB)", action="store_true", default=False)
 
     args = parser.parse_args()
 
     print("Arguments:", args)
 
-    assert os.path.isfile(
-        args.DMS_reference_file_path), f"MSA file list {args.DMS_reference_file_path} doesn't seem to exist"
-    mapping_file = pd.read_csv(args.DMS_reference_file_path)
+    assert os.path.isfile(args.MSA_list), f"MSA file list {args.MSA_list} doesn't seem to exist"
+    mapping_file = pd.read_csv(args.MSA_list)
 
     if mapping_file["MSA_filename"].duplicated().any():
-        print(f"Note: Duplicate MSA_filename detected in the mapping file. Deduplicating to only have one EVE model per alignment.")
+        print("Note: Duplicate MSA_filename detected in the mapping file. Deduplicating to only have one EVE model per alignment.")
         mapping_file = mapping_file.drop_duplicates(subset=["MSA_filename"])
-    protein_name = mapping_file['MSA_filename'][args.protein_index].split(".a2m")[
-        0]
-    msa_location = args.MSA_data_folder + os.sep + \
-        mapping_file['MSA_filename'][args.protein_index]
+    protein_name = mapping_file['MSA_filename'][args.protein_index].split(".a2m")[0]
+    if args.model_name_suffix is not None:
+        protein_name = f"{protein_name}_{args.model_name_suffix}"
+    msa_location = args.MSA_data_folder + os.sep + mapping_file['MSA_filename'][args.protein_index]
     print("Protein name: " + str(protein_name))
     print("MSA file: " + str(msa_location))
 
@@ -76,8 +74,7 @@ if __name__ == '__main__':
     model_checkpoint_final_path = args.VAE_checkpoint_location + os.sep + model_name
     if os.path.isfile(model_checkpoint_final_path):
         if args.skip_existing:
-            print(
-                "Model checkpoint already exists, skipping, since --skip_existing was specified")
+            print("Model checkpoint already exists, skipping, since --skip_existing was specified")
             exit(0)
         else:
             raise FileExistsError(f"Model checkpoint {model_checkpoint_final_path} already exists. \
@@ -102,10 +99,8 @@ if __name__ == '__main__':
             mapping_file["weight_file_name"][args.protein_index]
         print("Using weights filename from mapping file")
     else:
-        print(
-            f"weight_file_name not provided in mapping file. Using default weights filename of {protein_name}_theta_{theta}.npy")
-        weights_file = args.MSA_weights_location + os.sep + \
-            protein_name + '_theta_' + str(theta) + '.npy'
+        print(f"weight_file_name not provided in mapping file. Using default weights filename of {protein_name}_theta_{theta}.npy")
+        weights_file = args.MSA_weights_location + os.sep + protein_name + '_theta_' + str(theta) + '.npy'
 
     print(f"Weights location: {weights_file}")
 
@@ -124,8 +119,7 @@ if __name__ == '__main__':
         **data_kwargs,
     )
 
-    assert os.path.isfile(
-        args.model_parameters_location), args.model_parameters_location
+    assert os.path.isfile(args.model_parameters_location), args.model_parameters_location
     model_params = json.load(open(args.model_parameters_location))
 
     # Overwrite params if necessary

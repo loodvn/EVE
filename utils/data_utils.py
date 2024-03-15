@@ -30,7 +30,7 @@ class MSA_processing:
                  threshold_sequence_frac_gaps=0.5,
                  threshold_focus_cols_frac_gaps=0.3,
                  remove_sequences_with_indeterminate_AA_in_focus_cols=True,
-                 num_cpus=1,
+                 num_cpus=-1,
                  weights_calc_method="eve",
                  overwrite_weights=False,
                  skip_one_hot_encodings=False,
@@ -55,7 +55,7 @@ class MSA_processing:
             - positions with a fraction of gap characters above threshold_focus_cols_pct_gaps will be set to lower case (and not included in the focus_cols)
             - default is set to 0.3 (i.e., focus positions are the ones with 30% of gaps or less, i.e., 70% or more residue occupancy)
         - remove_sequences_with_indeterminate_AA_in_focus_cols: (bool) Remove all sequences that have indeterminate AA (e.g., B, J, X, Z) at focus positions of the wild type
-        - num_cpus: (int) Number of CPUs to use for parallel weights calculation processing. If set to -1, all available CPUs are used. If set to 1, weights are computed in serial.
+        - num_cpus: (int) Number of CPUs to use for parallel weights calculation processing. If set to -1 (default), all available CPUs are used. If set to 1, weights are computed in serial.
         - weights_calc_method: (str) Method to use for calculating sequence weights. Options: "eve" or "identity". (default "eve")
         - overwrite_weights: (bool) If True, calculate weights and overwrite weights file. If False, load weights from weights_location if it exists.
             Ideally, these weights options should be more like calc_weights=[True/False], and the weights_location should be a location to load from/save to.
@@ -91,6 +91,20 @@ class MSA_processing:
 
         # Fill in the instance variables
         self.gen_alignment()
+
+        if not self.skip_one_hot_encodings:
+            # Encode the sequences
+            print("One-hot encoding sequences")
+            self.one_hot_encoding = one_hot_3D(
+                list(self.seq_name_to_sequence.values()),  # Note: Dicts are unordered for python < 3.6
+                alphabet=self.alphabet,
+                seq_length=self.seq_len,
+                progress=True,
+            )
+            print("Data Shape =", self.one_hot_encoding.shape)
+        else:
+            print("Sequence length =", self.seq_len)
+        
         self.calc_weights(num_cpus=num_cpus, method=weights_calc_method)
         
         if not self.skip_one_hot_encodings:
@@ -164,17 +178,6 @@ class MSA_processing:
         print("Number of sequences after preprocessing:", len(self.seq_name_to_sequence))
 
         self.num_sequences = len(self.seq_name_to_sequence.keys())
-        if not self.skip_one_hot_encodings:
-            # Encode the sequences
-            print("One-hot encoding sequences")
-            self.one_hot_encoding = one_hot_3D(
-                seq_keys=self.seq_name_to_sequence.keys(),  # Note: Dicts are unordered for python < 3.6
-                seq_name_to_sequence=self.seq_name_to_sequence,
-                alphabet=self.alphabet,
-                seq_length=self.seq_len,
-                progress=True,
-            )
-            print("Data Shape =", self.one_hot_encoding.shape)
 
     # Using staticmethod to keep this under the MSAProcessing namespace, but this is apparently not best practice
     @staticmethod
@@ -260,8 +263,9 @@ class MSA_processing:
 
         self.Neff = np.sum(self.weights)
         print("Neff =", str(self.Neff))
-        print("Num sequences: ", self.num_sequences)
-
+        print("Number of sequences: ", self.num_sequences)
+        assert self.weights.shape[0] == self.num_sequences  # == self.one_hot_encoding.shape[0]
+        
         return self.weights
 
     def create_all_singles(self):
@@ -331,15 +335,14 @@ def generate_mutated_sequences(msa_data, list_mutations):
 
 # Copied from VAE_model.compute_evol_indices
 # One-hot encoding of sequences
-def one_hot_3D(seq_keys, seq_name_to_sequence, alphabet, seq_length, progress=False):
+def one_hot_3D(sequences, alphabet, seq_length, progress=False):
     """
     Take in a list of sequence names/keys and corresponding sequences, and generate a one-hot array according to an alphabet.
     """
     aa_dict = {letter: i for (i, letter) in enumerate(alphabet)}
 
-    one_hot_out = np.zeros((len(seq_keys), seq_length, len(alphabet)))
-    for i, seq_key in enumerate(tqdm(seq_keys, desc="One-hot encoding sequences", mininterval=1, disable=not progress)):
-        sequence = seq_name_to_sequence[seq_key]
+    one_hot_out = np.zeros((len(sequences), seq_length, len(alphabet)))
+    for i, sequence in enumerate(tqdm(sequences, desc="One-hot encoding sequences", mininterval=1, disable=not progress)):
         for j, letter in enumerate(sequence):
             if letter in aa_dict:
                 k = aa_dict[letter]
@@ -389,28 +392,18 @@ def get_num_cpus():
 
 
 class SequenceDataset(Dataset):
-    def __init__(self, seq_keys, seq_name_to_sequence, alphabet, seq_length, total_length=None):
-        self.seq_keys = list(seq_keys)
-        self.seq_name_to_sequence = seq_name_to_sequence
-        self.alphabet = alphabet
-        self.seq_length = seq_length
-        self.aa_dict = {letter: i for (i, letter) in enumerate(alphabet)}
-        if total_length is None:
-            self.total_length = len(self.seq_keys)
-        else:
-            self.total_length = int(total_length)
+    def __init__(self, sequences):
+        self.sequences = sequences
 
     def __len__(self):
-        return self.total_length
+        return len(self.sequences)
 
     def __getitem__(self, idx):
-        seq_key = self.seq_keys[idx]
-        sequence = self.seq_name_to_sequence[seq_key]
-        return sequence
+        return self.sequences[idx]
 
 
 class InfiniteDataLoader(DataLoader):
-    """Dataloader that reloads it's dataset every epoch"""
+    """Dataloader that reloads its dataset every epoch"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.iter_loader = super().__iter__()
@@ -428,13 +421,12 @@ class InfiniteDataLoader(DataLoader):
         return batch
 
 
-def get_one_hot_dataloader(seq_keys, seq_name_to_sequence, alphabet, seq_len, batch_size):
-    """To avoid issues with storing all one-hot encodings in memory, we can calculate them on the fly with a small performance overhead."""
-    dataset = SequenceDataset(
-        seq_keys=seq_keys,
-        seq_name_to_sequence=seq_name_to_sequence,
-        alphabet=alphabet,
-        seq_length=seq_len)
+def get_one_hot_dataloader(sequences, alphabet, seq_len, batch_size):
+    """
+    To avoid issues with storing all one-hot encodings in memory, we can calculate them on the fly with a small performance overhead.
+    Crucially, this only runs through the dataset once (unlike in training, where we need to iterate through each epoch)
+    """
+    dataset = SequenceDataset(sequences)
 
     # num_cpus = get_num_cpus()
 
@@ -455,18 +447,14 @@ def get_one_hot_dataloader(seq_keys, seq_name_to_sequence, alphabet, seq_len, ba
     return dataloader
 
 
-def get_training_dataloader(msa_data: MSA_processing, batch_size, num_training_steps):
-    """Similar to get_one_hot_dataloader, but based on the MSA_processing object and reloading the dataset each epoch."""
-    dataset = SequenceDataset(
-        seq_keys=msa_data.seq_name_to_sequence.keys(), 
-        seq_name_to_sequence=msa_data.seq_name_to_sequence, 
-        alphabet=msa_data.alphabet, 
-        seq_length=msa_data.seq_len)
+def get_training_dataloader(sequences, weights, alphabet, seq_len, batch_size, num_training_steps):
+    """Similar to get_one_hot_dataloader, but based on the MSA_processing object, using weighted sampling and reloading the dataset each epoch."""
+    dataset = SequenceDataset(sequences)
     # This can take a ton of memory if the weights or num_training_steps*batch_size are large
-    sampler = WeightedRandomSampler(weights=msa_data.weights, num_samples=num_training_steps*batch_size, replacement=True)
+    sampler = WeightedRandomSampler(weights=weights, num_samples=num_training_steps*batch_size, replacement=True)
     num_cpus = get_num_cpus()
         
-    one_hot_fn = get_one_hot_3D_fn(msa_data.alphabet, msa_data.seq_len)
+    one_hot_fn = get_one_hot_3D_fn(alphabet, seq_len)
     
     def collate_fn(batch_seqs):
         # Construct a batch of one-hot-encodings

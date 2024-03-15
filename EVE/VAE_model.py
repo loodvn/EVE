@@ -224,27 +224,35 @@ class VAE_model(nn.Module):
             scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=training_parameters['lr_scheduler_step_size'],
                                                   gamma=training_parameters['lr_scheduler_gamma'])
 
+        list_sequences = list(data.seq_name_to_sequence.values())
         if training_parameters['use_validation_set']:
-            # TODO fix this for use with a dataloader
-            x_train, x_val, weights_train, weights_val = train_test_split(data.one_hot_encoding, data.weights,
-                                                                          test_size=training_parameters[
-                                                                              'validation_set_pct'],
-                                                                          random_state=self.random_seed)
+            if use_dataloader:
+                seqs_train, seqs_val, weights_train, weights_val = train_test_split(list_sequences,
+                                                                                    data.weights,
+                                                                                    test_size=training_parameters['validation_set_pct'],
+                                                                                    random_state=self.random_seed)
+                # Validation still just passes in the whole one-hot encoding in one go
+                x_val = one_hot_3D(seqs_val, alphabet=data.alphabet, seq_length=data.seq_len)
+                assert len(seqs_train) == weights_train.shape[0]  # One weight per sequence
+            else:
+                x_train, x_val, weights_train, weights_val = train_test_split(data.one_hot_encoding, data.weights,
+                                                                              test_size=training_parameters['validation_set_pct'],
+                                                                              random_state=self.random_seed)
+                assert x_train.shape[0] == weights_train.shape[0]  # One weight per sequence
             best_val_loss = float('inf')
             best_model_step_index = 0
         else:
-            x_train = data.one_hot_encoding
+            seqs_train = list_sequences
             weights_train = data.weights
             best_val_loss = None
             best_model_step_index = training_parameters['num_training_steps']
         
         seq_sample_probs = weights_train / np.sum(weights_train)
-        assert len(data.seq_name_to_sequence) == weights_train.shape[0]  # One weight per sequence
         
         # Keep old behaviour for comparison
         if use_dataloader:
             # Stream one-hot encodings
-            dataloader = get_training_dataloader(msa_data=data, batch_size=training_parameters['batch_size'], num_training_steps=training_parameters['num_training_steps'])
+            train_dataloader = get_training_dataloader(sequences=seqs_train, weights=weights_train, alphabet=data.alphabet, seq_len=data.seq_len, batch_size=training_parameters['batch_size'], num_training_steps=training_parameters['num_training_steps'])
         else:
             batch_order = np.arange(x_train.shape[0])
             assert batch_order.shape == seq_sample_probs.shape, f"batch_order and seq_sample_probs must have the same shape. batch_order.shape={batch_order.shape}, seq_sample_probs.shape={seq_sample_probs.shape}"
@@ -254,21 +262,18 @@ class VAE_model(nn.Module):
                     batch_index = np.random.choice(batch_order, training_parameters['batch_size'], p=seq_sample_probs).tolist()
                     batch = x_train[batch_index]
                     yield batch
-            dataloader = get_mock_dataloader()
+            train_dataloader = get_mock_dataloader()
 
         self.Neff_training = np.sum(weights_train)
 
         start = time.time()
         train_loss = 0
-        print("debug starting training here:")
-        for training_step, batch in enumerate(tqdm(dataloader, desc="Training model", total=training_parameters['num_training_steps'], mininterval=2)):#mininterval=10)):
-            
+        for training_step, batch in enumerate(tqdm(train_dataloader, desc="Training model", total=training_parameters['num_training_steps'], mininterval=5)):
+
+            # For the dataloader, we may have to manually end training at
             if training_step >= training_parameters['num_training_steps']:
-                print("debug Breaking at step", training_step)
                 break
             x = batch.to(self.device, dtype=self.dtype)
-            if training_step == 0:
-                print("Got batch 1")
                 
             optimizer.zero_grad()
 
@@ -307,9 +312,8 @@ class VAE_model(nn.Module):
                           decoder_parameters=self.decoder_parameters,
                           training_parameters=training_parameters)
 
-            if training_parameters['use_validation_set'] and training_step % training_parameters[
-                'validation_freq'] == 0:
-                x_val = torch.tensor(x_val, dtype=self.dtype).to(self.device)
+            if training_parameters['use_validation_set'] and training_step % training_parameters['validation_freq'] == 0:
+                x_val = x_val.to(self.device, dtype=self.dtype)
                 val_neg_ELBO, val_BCE, val_KLD_latent, val_KLD_global_parameters = self.test_model(x_val, weights_val,
                                                                                                    training_parameters[
                                                                                                        'batch_size'])
@@ -331,7 +335,6 @@ class VAE_model(nn.Module):
                               decoder_parameters=self.decoder_parameters,
                               training_parameters=training_parameters)
                 self.train()
-        print("TMP: Finished training, last training_step=", training_step)
         
         
     def test_model(self, x_val, weights_val, batch_size):
@@ -342,7 +345,7 @@ class VAE_model(nn.Module):
             val_seq_sample_probs = weights_val / np.sum(weights_val)
 
             val_batch_index = np.random.choice(val_batch_order, batch_size, p=val_seq_sample_probs).tolist()
-            x = torch.tensor(x_val[val_batch_index], dtype=self.dtype).to(self.device)
+            x = x_val[val_batch_index].to(self.device, dtype=self.dtype)
             mu, log_var = self.encoder(x)
             z = self.sample_latent(mu, log_var)
             recon_x_log = self.decoder(z)
